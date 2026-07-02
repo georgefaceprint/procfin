@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProcFin - Process Flow & Business Model</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;800&display=swap" rel="stylesheet">
+    <!-- Mermaid.js for Vector Flowcharts -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <!-- html2pdf.js for Client-Side PDF Generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'neutral',
+            flowchart: {
+                useMaxWidth: true,
+                htmlLabels: true,
+                curve: 'basis'
+            }
+        });
+    </script>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --text-main: #0f172a;
+            --text-muted: #475569;
+            --border-color: #e2e8f0;
+            --bg-accent: #f8fafc;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            color: var(--text-main);
+            background-color: #f1f5f9;
+            margin: 0;
+            padding: 40px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .controls {
+            margin-bottom: 24px;
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            background-color: var(--primary);
+            color: white;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: 0.9rem;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2), 0 2px 4px -2px rgba(37, 99, 235, 0.2);
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            background-color: var(--primary-dark);
+            transform: translateY(-1px);
+            box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.3);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        /* Document Container styled for print presentation */
+        .document-container {
+            background-color: white;
+            width: 100%;
+            max-width: 850px;
+            min-height: 1100px; /* A4 Ratio */
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+            border-radius: 12px;
+            padding: 50px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            border-bottom: 2px solid var(--primary);
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+
+        .logo-section h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2.2rem;
+            font-weight: 800;
+            margin: 0;
+            color: var(--primary);
+            letter-spacing: -0.03em;
+        }
+
+        .logo-section p {
+            margin: 4px 0 0 0;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .meta-section {
+            text-align: right;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        .meta-section strong {
+            color: var(--text-main);
+        }
+
+        .section-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin: 30px 0 15px 0;
+            color: var(--text-main);
+            border-left: 4px solid var(--primary);
+            padding-left: 12px;
+        }
+
+        .model-explain {
+            background-color: var(--bg-accent);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .model-explain h3 {
+            margin: 0 0 8px 0;
+            font-size: 1.1rem;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .model-explain p {
+            margin: 0;
+            font-size: 0.92rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        .diagram-wrapper {
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 30px 10px;
+            display: flex;
+            justify-content: center;
+            background-color: white;
+            margin-bottom: 30px;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-top: auto;
+        }
+
+        .metric-card {
+            border: 1px solid var(--border-color);
+            background-color: var(--bg-accent);
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+        }
+
+        .metric-card .label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            letter-spacing: 0.05em;
+            margin-bottom: 6px;
+        }
+
+        .metric-card .value {
+            font-size: 1.4rem;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 800;
+            color: var(--primary);
+        }
+
+        .metric-card .description {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        footer {
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 1px solid var(--border-color);
+            text-align: center;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        /* Print styles adjustments */
+        @media print {
+            body {
+                background-color: white;
+                padding: 0;
+            }
+
+            .controls {
+                display: none;
+            }
+
+            .document-container {
+                box-shadow: none;
+                border-radius: 0;
+                padding: 0;
+                width: 100%;
+                min-height: auto;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="controls">
+        <button class="btn" onclick="downloadPDF()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download PDF Report
+        </button>
+    </div>
+
+    <div class="document-container" id="report-content">
+        <header>
+            <div class="logo-section">
+                <h1>ProcFin</h1>
+                <p>Managed Procurement & Supply Chain Finance</p>
+            </div>
+            <div class="meta-section">
+                Document: <strong>Process Workflow & Model Architecture</strong><br>
+                Systems Analyst: <strong>Antigravity AI Engine</strong><br>
+                Date: <strong>June 2026</strong>
+            </div>
+        </header>
+
+        <div class="model-explain">
+            <h3>System Architecture Overview</h3>
+            <p>
+                ProcFin operates as a <strong>Closed-Loop Supply Chain Finance & Managed Procurement Platform</strong>. 
+                Instead of disbursing cash directly to SMEs (eliminating cash diversion risk), the platform manages procurement directly. 
+                By matching the SME's tender specifications with category-specific accredited suppliers and selecting the lowest competitive bid, 
+                the platform secures wholesale supply margins while granting the SME a full-value credit facility.
+            </p>
+        </div>
+
+        <div class="section-title">Operational Workflow Diagram</div>
+
+        <div class="diagram-wrapper">
+            <div class="mermaid">
+                graph TD
+                    %% Define Theme Styles
+                    classDef actor fill:#2563eb,stroke:#1d4ed8,stroke-width:2px,color:#fff;
+                    classDef process fill:#f8fafc,stroke:#cbd5e1,stroke-width:1.5px,color:#0f172a;
+                    classDef system fill:#10b981,stroke:#047857,stroke-width:2px,color:#fff;
+                    classDef financial fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff;
+
+                    %% Node Definitions
+                    Jane["SME Jane: Submits R100,000 Request & Uploads BOQ"]:::actor
+                    Spec["Admin: Extracts Specs & Strips Out Tender Pricing (De-Pricing)"]:::process
+                    Broad[System: Broadcasts Specs to Accredited Category Suppliers]:::system
+                    Bid[Accredited Suppliers: Submit Competitive Quotes]:::actor
+                    Select{Lowest Bid Winner}:::system
+                    AWin[System Flags Supplier A: R86,000 Winning Bid]:::system
+                    Pay[Admin: Pays R86,000 Cash Directly to Supplier A]:::financial
+                    Retain[Platform Ledger: Retains R14,000 Procurement Spread]:::financial
+                    Credit[Platform Ledger: Issues R100,000 Credit Contract to Jane]:::financial
+                    Deliver[Supplier A: Produces & Delivers Spec Goods directly to Jane]:::process
+                    Done[Fulfillment: Jane Receives Goods - Cash Diversion Risk Zeroed]:::actor
+
+                    %% Node Connectors
+                    Jane --> Spec
+                    Spec --> Broad
+                    Broad --> Bid
+                    Bid --> Select
+                    Select -->|Automated Bidding Winner| AWin
+                    AWin --> Pay
+                    Pay --> Retain
+                    Pay --> Credit
+                    Retain & Credit --> Deliver
+                    Deliver --> Done
+
+                    %% Class Declarations
+                    class Jane,Bid,Done actor;
+                    class Spec,Deliver process;
+                    class Broad,Select,AWin system;
+                    class Pay,Retain,Credit financial;
+            </div>
+        </div>
+
+        <div class="section-title">Financial Arbitrage Breakdown</div>
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="label">SME Credit Facility</div>
+                <div class="value">R100,000</div>
+                <div class="description">Principal value of goods supplied to Jane for tender execution</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Supplier Disbursed Cost</div>
+                <div class="value">R86,000</div>
+                <div class="description">Actual procurement cost paid directly to Supplier A</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Platform Spread (14%)</div>
+                <div class="value">R14,000</div>
+                <div class="description">ProcFin gross procurement margin retained at source</div>
+            </div>
+        </div>
+
+        <footer>
+            Confidential Document &bull; ProcFin (Pty) Ltd &bull; Process Design and Operations System
+        </footer>
+    </div>
+
+    <script>
+        function downloadPDF() {
+            const element = document.getElementById('report-content');
+            const opt = {
+                margin:       [10, 10, 10, 10],
+                filename:     'ProcFin_Funding_Managed_Procurement_Workflow.pdf',
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            // Generate PDF
+            html2pdf().set(opt).from(element).save();
+        }
+    </script>
+</body>
+
+</html>

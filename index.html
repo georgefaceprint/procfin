@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#020617">
+    <meta name="description" content="ProcFin - Procurement Finance Redefined. Secure tender funding and automated escrow.">
+    <title>ProcFin | Procurement Finance Redefined</title>
+
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="assets/icon-192.png">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://accounts.google.com/gsi/client" async></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+</head>
+
+<body class="dark-theme">
+    <div id="app">
+        <!-- Dual Nav: Utility Bar -->
+        <div class="utility-bar">
+            <a href="#" onclick="app.showAuth('SME')">SMEs</a>
+            <a href="#" onclick="app.showAuth('FUNDER')">Funders</a>
+            <a href="#" onclick="app.showVerifiedSuppliers()">Suppliers</a>
+            <a href="#" onclick="app.showAuth('ADMIN')">Admin Portal</a>
+        </div>
+
+        <!-- Dual Nav: Main Navbar -->
+        <nav class="navbar">
+            <div class="logo" onclick="app.renderHome()" style="flex-direction: column; align-items: flex-start; line-height: 1.1; gap: 0;">
+                <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 2rem;">
+                    <svg class="logo-icon" width="36" height="36" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M40 15 C 20 20, 15 50, 40 85 C 60 70, 70 40, 50 15 Z" stroke="var(--primary)" stroke-width="4" fill="none" stroke-linecap="round"/>
+                        <circle cx="65" cy="25" r="5" fill="var(--primary)"/>
+                        <circle cx="80" cy="35" r="5" fill="var(--primary)"/>
+                        <circle cx="75" cy="55" r="5" fill="var(--primary)"/>
+                        <circle cx="60" cy="65" r="5" fill="var(--primary)"/>
+                        <line x1="30" y1="50" x2="60" y2="28" stroke="var(--primary)" stroke-width="3"/>
+                        <line x1="25" y1="55" x2="75" y2="38" stroke="var(--primary)" stroke-width="3"/>
+                        <line x1="25" y1="65" x2="70" y2="55" stroke="var(--primary)" stroke-width="3"/>
+                        <line x1="35" y1="75" x2="55" y2="65" stroke="var(--primary)" stroke-width="3"/>
+                    </svg>
+                    ProcFin
+                </div>
+                <span style="font-size: 0.6rem; letter-spacing: 0.15em; font-weight: 700; color: var(--primary); text-transform: uppercase;">Purchase Order Financing</span>
+            </div>
+            <div class="nav-links">
+                <a href="#" onclick="app.showFundingCategories()">Funding Solutions</a>
+                <a href="#how-it-works" onclick="app.showHowItWorks()">How it Works</a>
+                <a href="#">Success Stories</a>
+                <a href="#">Resources</a>
+            </div>
+            <div class="auth-buttons" id="auth-container">
+                <button class="btn btn-secondary btn-sm" onclick="app.toggleTheme()" id="theme-toggle" style="padding: 0.5rem; background: transparent; border: 1px solid var(--border); border-radius: 50%;">🌙</button>
+                <button class="btn btn-secondary" onclick="app.showAuth()">Login</button>
+                <button class="btn btn-primary" onclick="app.showAuth('SME')">Apply for Funding</button>
+            </div>
+        </nav>
+
+        <main class="content-view" id="main-view">
+            <!-- Dynamic Content Injected Here -->
+            <section class="hero hero-enter">
+                <div class="hero-content">
+                    <span class="badge">Procurement Finance, Redefined</span>
+                    <h1 class="gradient-text">Fund Your Next Big Tender.</h1>
+                    <p>Secure tender funding, vetted suppliers, and automated milestone-based escrow—all in one premium platform designed for modern business.</p>
+                    <div class="hero-actions">
+                        <button class="btn btn-primary btn-large" onclick="app.showAuth('SME')">Apply for Funding</button>
+                        <button class="btn btn-outline btn-large" onclick="app.showAuth('FUNDER')">Become a Funder</button>
+                    </div>
+                </div>
+                <div class="hero-visual">
+                    <div class="glass-card float-anim">
+                        <div class="card-header">
+                            <span class="status pulse">Escrow Active</span>
+                        </div>
+                        <h3>R2,500,000 Facility</h3>
+                        <p class="subtext">Funder: Capital Partners Ltd</p>
+                        <div class="progress-bar">
+                            <div class="progress" style="width: 65%"></div>
+                        </div>
+                        <p class="status-text">Milestone 2: Supplier Payment Pending</p>
+                    </div>
+                </div>
+            </section>
+
+            
+            <!-- Funding Categories Slider -->
+            <section class="features-section" id="categories" style="margin-top: 6rem;">
+                <h2 style="font-size: 2.5rem; margin-bottom: 1rem;">Funding Categories</h2>
+                <p class="subtext" style="max-width: 600px; margin: 0 auto 2rem auto;">ProcFin supports a wide array of purchase order financing categories. Swipe through to see where we deploy capital.</p>
+                
+                <div class="horizontal-slider">
+                    <div class="category-card" onclick="app.showAuth('SME')">
+                        <div class="category-icon">🏗️</div>
+                        <h3>Construction & Mining</h3>
+                        <p class="subtext">Heavy equipment, raw materials, and specialized contracting supplies.</p>
+                    </div>
+                    <div class="category-card" onclick="app.showAuth('SME')">
+                        <div class="category-icon">💻</div>
+                        <h3>IT & Technology</h3>
+                        <p class="subtext">Hardware rollouts, software licensing, and network infrastructure.</p>
+                    </div>
+                    <div class="category-card" onclick="app.showAuth('SME')">
+                        <div class="category-icon">🏥</div>
+                        <h3>Medical Supplies</h3>
+                        <p class="subtext">Pharmaceuticals, hospital equipment, and PPE fulfillment.</p>
+                    </div>
+                    <div class="category-card" onclick="app.showAuth('SME')">
+                        <div class="category-icon">🚚</div>
+                        <h3>Logistics & Transport</h3>
+                        <p class="subtext">Fleet acquisition, fuel supply, and supply chain logistics.</p>
+                    </div>
+                    <div class="category-card" onclick="app.showAuth('SME')">
+                        <div class="category-icon">⚡</div>
+                        <h3>Energy & Utilities</h3>
+                        <p class="subtext">Solar installations, electrical components, and green energy.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Feature Showcase -->
+            <section class="features-section" id="how-it-works">
+                <h2 style="font-size: 2.5rem; margin-bottom: 1rem;">A Seamless Ecosystem</h2>
+                <p class="subtext" style="max-width: 600px; margin: 0 auto;">ProcFin integrates every step of the procurement process to ensure maximum security for funders and seamless capital for SMEs.</p>
+                
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">🔒</div>
+                        <h3>Digital Vault</h3>
+                        <p class="subtext">Upload your compliance documents once. Our secure digital vault ensures instant KYC and fast-tracks your funding applications.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🤝</div>
+                        <h3>Smart Matchmaking</h3>
+                        <p class="subtext">Get connected with vetted funders ready to deploy capital for your specific tender category and verified suppliers.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">⚖️</div>
+                        <h3>Secure Escrow</h3>
+                        <p class="subtext">Capital is locked in escrow. ProcFin pays suppliers directly upon proof of delivery, completely neutralizing fund mismanagement.</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer style="text-align: center; padding: 3rem 2rem; border-top: 1px solid var(--border); margin-top: 4rem;">
+            <div style="margin-bottom: 1rem;">
+                <span style="font-family: var(--font-heading); font-size: 1.5rem; font-weight: 800;">ProcFin</span>
+            </div>
+            <p class="subtext" style="margin-bottom: 1rem;">Premium Procurement Finance for South Africa</p>
+            <p class="subtext" style="font-size: 0.85rem;">
+                &copy; 2026 ProcFin. All rights reserved. <br>
+                <a href="#" onclick="app.showAuth('ADMIN')" style="color: var(--accent-purple); text-decoration: none; margin-top: 0.5rem; display: inline-block;">Admin Portal Access</a>
+            </p>
+        </footer>
+    </div>
+
+    <script type="module" src="app.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('SW Registered!', reg))
+                    .catch(err => console.error('SW Registration Failed!', err));
+            });
+        }
+    </script>
+</body>
+</html>

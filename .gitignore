@@ -1,0 +1,8 @@
+node_modules
+.DS_Store
+.env
+functions/.env
+procfin-react/dist
+procfin-react/node_modules
+firebase-debug.log
+firebase-debug.*.log

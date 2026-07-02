@@ -1,0 +1,5 @@
+{
+    "buildCommand": "cd procfin-react && npm install && npm run build",
+    "outputDirectory": "procfin-react/dist",
+    "framework": "vite"
+}

@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProcFin | Workflow Architecture Dashboard</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;700;800;900&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS v3 Play CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Outfit', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(226, 232, 240, 0.8);
+        }
+        
+        .dark .glass-card {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(51, 65, 85, 0.5);
+        }
+
+        .step-active {
+            border-color: #3b82f6;
+            background-color: rgba(59, 130, 246, 0.05);
+        }
+        .dark .step-active {
+            border-color: #60a5fa;
+            background-color: rgba(96, 165, 250, 0.08);
+        }
+
+        @media print {
+            body {
+                background: white !important;
+                color: black !important;
+                padding: 0 !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .print-container {
+                box-shadow: none !important;
+                border: none !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                padding: 0 !important;
+            }
+            .page-break {
+                page-break-after: always;
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans min-h-screen transition-colors duration-300 antialiased pb-20">
+    <div id="app" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+        
+        <!-- Controls Header (Hidden in Print) -->
+        <header class="no-print mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white/50 dark:bg-slate-900/40 backdrop-blur-md p-6 rounded-3xl border border-slate-200/60 dark:border-slate-800/40">
+            <div>
+                <div class="flex items-center gap-2">
+                    <span class="text-3xl">💸</span>
+                    <h1 class="text-2xl font-black font-display tracking-tight text-blue-600 dark:text-blue-400">ProcFin</h1>
+                </div>
+                <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 font-medium">Interactive Operations & Business Model Architecture Dashboard</p>
+            </div>
+            
+            <div class="flex items-center gap-3">
+                <button onclick="toggleDarkMode()" class="p-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-2xl transition-all" title="Toggle Theme">
+                    <span id="theme-icon">🌙</span>
+                </button>
+                <button onclick="window.print()" class="btn px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-2xl shadow-lg shadow-blue-500/20 hover:shadow-blue-500/35 transition-all flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 0 0 2-2v-4a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h2m2 4h6a2 2 0 0 0 2-2v-4a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2zm8-12V5a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v4"/></svg>
+                    Export Workflow PDF
+                </button>
+            </div>
+        </header>
+
+        <!-- Printable Document Wrapper -->
+        <main class="print-container grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            
+            <!-- Left Side: Timeline / Wizard & Notices (7 Cols) -->
+            <section class="lg:col-span-7 space-y-8">
+                
+                <!-- Business Model Identity Callout -->
+                <div class="glass-card rounded-[2.5rem] p-8 shadow-sm relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-48 h-48 bg-blue-500/5 dark:bg-blue-400/5 rounded-bl-full blur-2xl"></div>
+                    <div class="relative z-10">
+                        <span class="inline-block bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider mb-4 border border-blue-200 dark:border-blue-800">
+                            Model Architecture
+                        </span>
+                        <h2 class="text-3xl font-black font-display text-slate-900 dark:text-white mb-3 tracking-tight">Closed-Loop Managed Procurement</h2>
+                        <p class="text-slate-500 dark:text-slate-400 text-sm leading-relaxed max-w-2xl font-medium">
+                            This model is also known as <strong class="text-slate-900 dark:text-slate-200">Reverse Factoring with Managed Disbursement</strong> or <strong class="text-slate-900 dark:text-slate-200">Arbitraged Purchase Order Financing</strong>. By procuring goods directly from prequalified suppliers on behalf of Jane, ProcFin fully mitigates cash diversion risk while capturing arbitrage spread at source.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Step-by-Step Interactive Wizard -->
+                <div class="glass-card rounded-[2.5rem] p-8 shadow-sm">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-xl font-bold font-display text-slate-900 dark:text-white">Operational Flow Wizard</h3>
+                        <span class="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest no-print">Click steps to highlight</span>
+                    </div>
+
+                    <!-- Steps Timeline -->
+                    <div class="space-y-4">
+                        <!-- Step 1 -->
+                        <div id="step-1" onclick="selectStep(1)" class="group cursor-pointer p-4 border border-slate-200/60 dark:border-slate-800/60 rounded-2xl transition-all duration-300 hover:border-blue-400 dark:hover:border-blue-500 step-active flex gap-4 items-start">
+                            <div class="w-10 h-10 rounded-xl bg-blue-500 text-white flex items-center justify-center font-bold text-sm flex-shrink-0 group-hover:scale-105 transition-transform">1</div>
+                            <div>
+                                <h4 class="font-bold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors text-sm">Funding Request Submitted</h4>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">SME Jane requests R100,000 credit facility to fulfill an awarded tender contract.</p>
+                            </div>
+                        </div>
+
+                        <!-- Step 2 -->
+                        <div id="step-2" onclick="selectStep(2)" class="group cursor-pointer p-4 border border-slate-200/60 dark:border-slate-800/60 rounded-2xl transition-all duration-300 hover:border-blue-400 dark:hover:border-blue-500 flex gap-4 items-start">
+                            <div class="w-10 h-10 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center font-bold text-sm flex-shrink-0 group-hover:scale-105 transition-transform">2</div>
+                            <div>
+                                <h4 class="font-bold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors text-sm">Specification Translation</h4>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">ProcFin Admin translates Jane's tender items into specific technical product requirements.</p>
+                            </div>
+                        </div>
+
+                        <!-- Step 3 -->
+                        <div id="step-3" onclick="selectStep(3)" class="group cursor-pointer p-4 border border-slate-200/60 dark:border-slate-800/60 rounded-2xl transition-all duration-300 hover:border-blue-400 dark:hover:border-blue-500 flex gap-4 items-start">
+                            <div class="w-10 h-10 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center font-bold text-sm flex-shrink-0 group-hover:scale-105 transition-transform">3</div>
+                            <div>
+                                <h4 class="font-bold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors text-sm">Prequalified Bid Broadcast</h4>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Platform automatically broadcasts specifications to category-accredited suppliers.</p>
+                            </div>
+                        </div>
+
+                        <!-- Step 4 -->
+                        <div id="step-4" onclick="selectStep(4)" class="group cursor-pointer p-4 border border-slate-200/60 dark:border-slate-800/60 rounded-2xl transition-all duration-300 hover:border-blue-400 dark:hover:border-blue-500 flex gap-4 items-start">
+                            <div class="w-10 h-10 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center font-bold text-sm flex-shrink-0 group-hover:scale-105 transition-transform">4</div>
+                            <div>
+                                <h4 class="font-bold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors text-sm">Competitive Supplier Bidding</h4>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Suppliers bid specs dynamically to win the procurement contract.</p>
+                            </div>
+                        </div>
+
+                        <!-- Step 5 -->
+                        <div id="step-5" onclick="selectStep(5)" class="group cursor-pointer p-4 border border-slate-200/60 dark:border-slate-800/60 rounded-2xl transition-all duration-300 hover:border-blue-400 dark:hover:border-blue-500 flex gap-4 items-start">
+                            <div class="w-10 h-10 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center font-bold text-sm flex-shrink-0 group-hover:scale-105 transition-transform">5</div>
+                            <div>
+                                <h4 class="font-bold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors text-sm">Automated Selection (Lowest Bid)</h4>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">System highlights the lowest quote. Supplier A wins the bid at R86,000.</p>
+                            </div>
+                        </div>
+
+                        <!-- Step 6 -->
+                        <div id="step-6" onclick="selectStep(6)" class="group cursor-pointer p-4 border border-slate-200/60 dark:border-slate-800/60 rounded-2xl transition-all duration-300 hover:border-blue-400 dark:hover:border-blue-500 flex gap-4 items-start">
+                            <div class="w-10 h-10 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center font-bold text-sm flex-shrink-0 group-hover:scale-105 transition-transform">6</div>
+                            <div>
+                                <h4 class="font-bold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors text-sm">Direct Supplier Disbursal</h4>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">ProcFin pays R86,000 cash directly to Supplier A. Jane receives R0 cash.</p>
+                            </div>
+                        </div>
+
+                        <!-- Step 7 -->
+                        <div id="step-7" onclick="selectStep(7)" class="group cursor-pointer p-4 border border-slate-200/60 dark:border-slate-800/60 rounded-2xl transition-all duration-300 hover:border-blue-400 dark:hover:border-blue-500 flex gap-4 items-start">
+                            <div class="w-10 h-10 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center font-bold text-sm flex-shrink-0 group-hover:scale-105 transition-transform">7</div>
+                            <div>
+                                <h4 class="font-bold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors text-sm">Arbitrage & Contract Lock</h4>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Platform retains R14,000 margin. Jane's facility is recorded at R100,000.</p>
+                            </div>
+                        </div>
+
+                        <!-- Step 8 -->
+                        <div id="step-8" onclick="selectStep(8)" class="group cursor-pointer p-4 border border-slate-200/60 dark:border-slate-800/60 rounded-2xl transition-all duration-300 hover:border-blue-400 dark:hover:border-blue-500 flex gap-4 items-start">
+                            <div class="w-10 h-10 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center font-bold text-sm flex-shrink-0 group-hover:scale-105 transition-transform">8</div>
+                            <div>
+                                <h4 class="font-bold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors text-sm">Physical Prequalified Fulfillment</h4>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Supplier A delivers products directly to Jane's site to fulfill the tender specifications.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- Right Side: Analytics, Interactive Flow, Math & Delivery Alert (5 Cols) -->
+            <section class="lg:col-span-5 space-y-8">
+                
+                <!-- Dynamic Insight Detail Card -->
+                <div class="glass-card rounded-[2.5rem] p-8 shadow-sm">
+                    <h3 class="text-xs font-black uppercase tracking-widest text-slate-400 mb-6 flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-blue-500 animate-ping"></span>
+                        Active Step Insight
+                    </h3>
+                    <div id="insight-container" class="space-y-4">
+                        <!-- Default Step 1 showing initial overview -->
+                        <div>
+                            <h4 id="insight-title" class="text-xl font-bold font-display text-slate-900 dark:text-white">Funding Request Filed</h4>
+                            <p id="insight-desc" class="text-slate-500 dark:text-slate-400 text-sm mt-3 leading-relaxed">
+                                SME Client Jane files a capital request of **R100,000** backed by an official government or corporate tender award. No cash will ever touch Jane's accounts. The platform secures the tender mandate and will procure the raw requirements on her behalf.
+                            </p>
+                        </div>
+                        <div class="pt-4 border-t border-slate-200 dark:border-slate-800">
+                            <div class="flex justify-between items-center text-xs font-bold">
+                                <span class="text-slate-400 uppercase tracking-wider">Primary Actor</span>
+                                <span id="insight-actor" class="bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-3 py-1 rounded-full uppercase">SME Client (Jane)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Transactional Math Diagram -->
+                <div class="glass-card rounded-[2.5rem] p-8 shadow-sm">
+                    <h3 class="text-xl font-bold font-display text-slate-900 dark:text-white mb-6">Transactional Arbitrage Flow</h3>
+                    
+                    <div class="space-y-6">
+                        <!-- R100k Request Card -->
+                        <div class="flex items-center justify-between p-4 bg-slate-100/60 dark:bg-slate-900/40 border border-slate-200/50 dark:border-slate-800/50 rounded-2xl">
+                            <div class="flex items-center gap-3">
+                                <span class="text-2xl">📋</span>
+                                <div>
+                                    <div class="text-[10px] font-black uppercase tracking-widest text-slate-400">Credit Facility Issued</div>
+                                    <div class="text-lg font-black font-display text-slate-900 dark:text-white font-mono">R100,000</div>
+                                </div>
+                            </div>
+                            <span class="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 font-bold px-3 py-1 rounded-full uppercase">Jane's Limit</span>
+                        </div>
+
+                        <!-- Arrow connector -->
+                        <div class="flex justify-center -my-2">
+                            <div class="h-8 w-0.5 bg-gradient-to-b from-blue-500 to-indigo-500"></div>
+                        </div>
+
+                        <!-- Admin / Platform Card -->
+                        <div class="p-5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl relative shadow-xl shadow-blue-500/10">
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="text-[10px] font-black uppercase tracking-widest text-white/70">Procurement Manager</span>
+                                <span class="text-xs bg-white/20 px-2 py-0.5 rounded font-black">ProcFin</span>
+                            </div>
+                            <h4 class="text-lg font-bold font-display mb-4">Admin Bidding Execution</h4>
+                            <div class="grid grid-cols-2 gap-4 border-t border-white/20 pt-4">
+                                <div>
+                                    <div class="text-[9px] uppercase tracking-wider text-white/60">Supplier Cost</div>
+                                    <div class="text-lg font-black font-mono">R86,000</div>
+                                </div>
+                                <div>
+                                    <div class="text-[9px] uppercase tracking-wider text-white/60">Platform Margin (14%)</div>
+                                    <div class="text-lg font-black font-mono text-emerald-300">R14,000</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Arrow connector -->
+                        <div class="flex justify-center -my-2">
+                            <div class="h-8 w-0.5 bg-gradient-to-b from-indigo-500 to-emerald-500"></div>
+                        </div>
+
+                        <!-- Supplier A Card -->
+                        <div class="flex items-center justify-between p-4 bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/20 rounded-2xl">
+                            <div class="flex items-center gap-3">
+                                <span class="text-2xl">🚚</span>
+                                <div>
+                                    <div class="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Winning Supplier Disbursal</div>
+                                    <div class="text-lg font-black font-display text-emerald-600 dark:text-emerald-400 font-mono">R86,000</div>
+                                </div>
+                            </div>
+                            <span class="text-xs bg-emerald-500 text-white font-bold px-3 py-1 rounded-full uppercase">Supplier A</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Direct Delivery Cashless Notice Card -->
+                <div class="border-2 border-emerald-500/20 bg-emerald-500/5 dark:bg-emerald-500/10 rounded-[2.5rem] p-8 shadow-sm flex items-start gap-5 relative overflow-hidden">
+                    <div class="absolute -top-6 -right-6 w-24 h-24 bg-emerald-500/10 rounded-full blur-xl"></div>
+                    <div class="w-12 h-12 bg-white dark:bg-slate-900 border-2 border-emerald-500 text-emerald-500 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0 animate-bounce">
+                        🛡️
+                    </div>
+                    <div>
+                        <h4 class="font-black font-display text-emerald-800 dark:text-emerald-400 uppercase tracking-tight text-sm mb-2">Cashless Direct Delivery Guarantee</h4>
+                        <p class="text-xs text-emerald-700/80 dark:text-emerald-400/80 leading-relaxed font-medium">
+                            This facility implements <strong>Managed Direct Supplier Disbursement</strong>. Under no circumstances is cash deposited into Jane's accounts.Prequalified suppliers deliver physical inventory or contract services directly to Jane's delivery site, fully eliminating fund misappropriation.
+                        </p>
+                    </div>
+                </div>
+
+            </section>
+
+        </main>
+
+        <footer class="mt-16 pt-8 border-t border-slate-200 dark:border-slate-800 text-center text-xs text-slate-500 dark:text-slate-400">
+            Confidential Presentation Deck Material &bull; ProcFin System Flow v1.0 &bull; Operational Report
+        </footer>
+    </div>
+
+    <script>
+        // Interactive Steps Data Mapping
+        const stepsData = {
+            1: {
+                title: "Funding Request Filed & BOQ Uploaded",
+                desc: "SME Client Jane submits a R100,000 funding request and uploads her Tender Award Letter, Purchase Order, and Bill of Quantities (BOQ). The BOQ contains the raw requirements and her customer-facing pricing.",
+                actor: "SME Client (Jane)"
+            },
+            2: {
+                title: "Specification Translation (De-Pricing)",
+                desc: "ProcFin Admin reviews Jane's BOQ and extracts the raw technical specifications and delivery timelines. Crucially, all of Jane's markup, margins, and customer-facing pricing are stripped out to protect her confidentiality and prevent supplier bidding inflation.",
+                actor: "Platform Admin"
+            },
+            3: {
+                title: "Prequalified Bid Broadcast",
+                desc: "The system identifies all prequalified suppliers accredited for this specific category (e.g., Construction Equipment, ICT Hardware, Logistics) and broadcasts the spec-sheet to trigger competitive quoting.",
+                actor: "Platform System"
+            },
+            4: {
+                title: "Competitive Supplier Bidding",
+                desc: "Accredited platform suppliers receive the broadcast and bid the contract live. The bidding process ensures that prequalified materials are sourced at wholesale bulk rates.",
+                actor: "Accredited Suppliers"
+            },
+            5: {
+                title: "Automated Selection (Lowest Bid)",
+                desc: "The platform's bidding algorithm flags the lowest quote. Supplier A wins the bid at **R86,000** for matching specifications, locking in the procurement target.",
+                actor: "Platform System"
+            },
+            6: {
+                title: "Direct Supplier Disbursal",
+                desc: "Admin authorizes payment of **R86,000** cash directly into Supplier A's verified bank account to initiate production. Jane's cash flow is kept entirely separate to ensure compliance.",
+                actor: "Platform Admin / Funder"
+            },
+            7: {
+                title: "Arbitrage & Margin Capture",
+                desc: "ProcFin books the transaction. The platform retains the **R14,000** spread as profit margin, while structuring Jane's credit repayment schedule on the principal amount of R100,000.",
+                actor: "Financial Ledger"
+            },
+            8: {
+                title: "Cashless Direct Fulfillment",
+                desc: "Supplier A delivers the completed goods (worth R100,000 retail value) directly to Jane's delivery site. Jane inspects the delivery and signs off, completing the cashless funding loop.",
+                actor: "Supplier A & SME Jane"
+            }
+        };
+
+        function selectStep(stepId) {
+            // Remove active style from all steps
+            for (let i = 1; i <= 8; i++) {
+                const el = document.getElementById(`step-${i}`);
+                if (el) {
+                    el.classList.remove('step-active');
+                    const numBadge = el.querySelector('div');
+                    if (i !== stepId) {
+                        numBadge.classList.replace('bg-blue-500', 'bg-slate-200');
+                        numBadge.classList.replace('dark:bg-blue-500', 'dark:bg-slate-800');
+                        numBadge.classList.replace('text-white', 'text-slate-700');
+                        numBadge.classList.replace('text-white', 'dark:text-slate-300');
+                    }
+                }
+            }
+
+            // Add active style to selected step
+            const activeEl = document.getElementById(`step-${stepId}`);
+            if (activeEl) {
+                activeEl.classList.add('step-active');
+                const numBadge = activeEl.querySelector('div');
+                numBadge.classList.replace('bg-slate-200', 'bg-blue-500');
+                numBadge.classList.replace('dark:bg-slate-800', 'dark:bg-blue-500');
+                numBadge.classList.replace('text-slate-700', 'text-white');
+                numBadge.classList.replace('dark:text-slate-300', 'text-white');
+            }
+
+            // Update Insight Card
+            const data = stepsData[stepId];
+            if (data) {
+                document.getElementById('insight-title').innerText = data.title;
+                document.getElementById('insight-desc').innerText = data.desc.replace(/\*\*(.*?)\*\*/g, '$1'); // clean Markdown bold for basic text rendering
+                document.getElementById('insight-actor').innerText = data.actor;
+            }
+        }
+
+        // Dark Mode Toggle
+        function toggleDarkMode() {
+            const isDark = document.documentElement.classList.contains('dark');
+            if (isDark) {
+                document.documentElement.classList.remove('dark');
+                document.getElementById('theme-icon').innerText = '🌙';
+                localStorage.setItem('procfin_theme', 'light');
+            } else {
+                document.documentElement.classList.add('dark');
+                document.getElementById('theme-icon').innerText = '☀️';
+                localStorage.setItem('procfin_theme', 'dark');
+            }
+        }
+
+        // Sync local storage preference
+        if (localStorage.getItem('procfin_theme') === 'dark' || (!('procfin_theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+            document.getElementById('theme-icon').innerText = '☀️';
+        } else {
+            document.documentElement.classList.remove('dark');
+            document.getElementById('theme-icon').innerText = '🌙';
+        }
+    </script>
+</body>
+
+</html>

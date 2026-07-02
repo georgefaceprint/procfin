@@ -1,0 +1,43 @@
+{
+  "name": "ProcFin - SME Funding & Tender Ecosystem",
+  "short_name": "ProcFin",
+  "theme_color": "#0b0f19",
+  "background_color": "#0b0f19",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "start_url": "/",
+  "description": "Fast, transparent business and tender funding for South African SMEs. Connect with verified funders and suppliers.",
+  "categories": [
+    "finance",
+    "business"
+  ],
+  "shortcuts": [
+    {
+      "name": "Apply for Funding",
+      "short_name": "Funding",
+      "description": "Start a new funding application",
+      "url": "/#apply",
+      "icons": [
+        {
+          "src": "assets/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ],
+  "icons": [
+    {
+      "src": "assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

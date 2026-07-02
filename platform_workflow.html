@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProcFin Ecosystem Workflow</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <script>
+        mermaid.initialize({ startOnLoad: true, theme: 'default' });
+    </script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 40px;
+            color: #333;
+        }
+
+        h1 {
+            text-align: center;
+            color: #1a1a2e;
+            margin-bottom: 2rem;
+        }
+
+        .instructions {
+            background: #f3f4f6;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            text-align: center;
+            border: 1px dashed #9ca3af;
+        }
+
+        @media print {
+            .instructions {
+                display: none;
+            }
+
+            body {
+                padding: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="instructions">
+        <strong>To save as a PDF:</strong> Press <code>Cmd + P</code> (Mac) or <code>Ctrl + P</code> (Windows) and
+        select "Save as PDF".
+    </div>
+
+    <h1>ProcFin Ecosystem Workflow</h1>
+
+    <div class="mermaid">
+        graph TD
+        %% Define styles for clarity
+        classDef sme fill:#3b82f6,stroke:#1d4ed8,stroke-width:2px,color:#fff;
+        classDef supplier fill:#10b981,stroke:#047857,stroke-width:2px,color:#fff;
+        classDef funder fill:#8b5cf6,stroke:#6d28d9,stroke-width:2px,color:#fff;
+        classDef admin fill:#f59e0b,stroke:#b45309,stroke-width:2px,color:#fff;
+        classDef system action fill:#1f2937,stroke:#374151,stroke-width:1px,color:#d1d5db;
+        classDef contract fill:#4c1d95,stroke:#c4b5fd,stroke-width:2px,color:#fff;
+
+        %% ROLES
+        SME((SME)):::sme
+        SUP((Verified Supplier)):::supplier
+        FUN((Capital Funder)):::funder
+        ADM((Platform Admin)):::admin
+
+        %% PHASE 1: ONBOARDING & VERIFICATION
+        subgraph "Phase 1: Onboarding & Identity"
+        SME -->|1. Register & Onboard| Vault_S[Upload Compliance Docs]
+        SUP -->|1. Register & Onboard| Vault_S
+        FUN -->|1. Register & Onboard| Wait_V[Await Manual Verification]
+
+        Vault_S -->|2. Admin Reviews| ADM_V[Admin Approval Board]
+        Wait_V -->|2. Admin Reviews| ADM_V
+
+        ADM_V -->|3. Approve & Send Email| Active_P[Active Ecosystem Status]
+        end
+
+        Active_P -.-> SME_Dash[SME Dashboard]
+        Active_P -.-> SUP_Dash[Supplier Dashboard]
+        Active_P -.-> FUN_Dash[Funder Dashboard]
+
+        %% PHASE 2: QUOTE SOURCING
+        subgraph "Phase 2: B2B Quote Pipeline"
+        SME_Dash -->|4. Broadcast RFQ Request| RFQ[System RFQ Created]
+        RFQ -.->|Email/App Notify| SUP_Dash
+        SUP_Dash -->|5. Submit Formal Quote| QUOTE[Supplier Quote Object]
+        QUOTE -.->|Email/App Notify| SME_Dash
+
+        SME_Dash -->|6. Review Quote| REV_Q{Accept or Reject?}
+        REV_Q -->|Reject| REJ_Q[Quote Discarded]
+        REV_Q -->|Accept| ACC_Q[RFQ Closed & Quote Locked]
+
+        REJ_Q -.->|Notify| SUP_Dash
+        ACC_Q -.->|Notify| SUP_Dash
+        end
+
+        %% PHASE 3: FUNDING & STRUCTURING
+        subgraph "Phase 3: Deal Securitization"
+        ACC_Q -->|7. Need Capital?| FUND_REQ[SME Submits Deal Request]
+        FUND_REQ -.->|Notify All Funders| FUN_Dash
+        FUN_Dash -->|8. Review Deals| STRUCTURE[Draft Facility Terms]
+
+        STRUCTURE -->|9. Approve Deal| GEN_CONT[[Generate PDF Tripartite Contract]]:::contract
+        GEN_CONT -.->|Email/Notify| SME_Dash
+        GEN_CONT -->|10. Lock Capital| ESCROW[(ProcFin Escrow)]
+        end
+
+        %% PHASE 4: EXECUTION & PAYOUT
+        subgraph "Phase 4: Fulfillment"
+        ESCROW -->|11. Project Starts| FULFILL[Supplier Delivers Goods/Services]
+        FULFILL -->|12. Upload Proof| UPLOAD_WB[Upload Waybill/Invoices]
+        UPLOAD_WB -->|13. Authorize Payment| PAYOUT[Capital Placed Directly in Supplier Bank Account]
+        end
+    </div>
+</body>
+
+</html>
