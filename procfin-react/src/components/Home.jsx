@@ -1,254 +1,290 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 export default function Home({ onNavigate }) {
+    const [wizardStep, setWizardStep] = useState(1);
+    const [category, setCategory] = useState('');
+    const [amount, setAmount] = useState(500000);
+    const [supplierChoice, setSupplierChoice] = useState('');
+    const [leadData, setLeadData] = useState({ name: '', company: '', email: '', whatsapp: '' });
+
+    const handleCategorySelect = (cat) => {
+        setCategory(cat);
+        setTimeout(() => setWizardStep(2), 400);
+    };
+
+    const handleSupplierSelect = (choice) => {
+        setSupplierChoice(choice);
+        setTimeout(() => setWizardStep(4), 400);
+    };
+
+    const handleLeadSubmit = () => {
+        if (!leadData.name || !leadData.company || !leadData.whatsapp) {
+            alert('Please fill in your Name, Company, and WhatsApp Number to proceed.');
+            return;
+        }
+        // In a real app, save lead data here.
+        onNavigate('auth', 'SME');
+    };
+
+    const formatRands = (num) => 'R ' + parseInt(num).toLocaleString('en-ZA');
+    const fee = amount * 0.20;
+    const total = amount + fee;
+
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-[#1a1a2e] text-gray-900 dark:text-gray-100 font-sans transition-colors duration-300">
-            <nav className="flex justify-between items-center p-6 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800/50 backdrop-blur-md sticky top-0 z-50">
-                <div className="text-xl font-bold cursor-pointer flex items-center gap-2" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-                    <span>💸</span> ProcFin
+        <div className="dark-theme" style={{ minHeight: '100vh', backgroundColor: 'var(--bg-color)', color: 'var(--text-color)', fontFamily: 'var(--font-body)' }}>
+            
+            {/* Dual Nav: Utility Bar */}
+            <div className="utility-bar">
+                <a href="#" onClick={(e) => { e.preventDefault(); onNavigate('auth', 'SME'); }}>SMEs</a>
+                <a href="#" onClick={(e) => { e.preventDefault(); onNavigate('auth', 'FUNDER'); }}>Funders</a>
+                <a href="#" onClick={(e) => { e.preventDefault(); onNavigate('auth', 'SUPPLIER'); }}>Suppliers</a>
+                <a href="#" onClick={(e) => { e.preventDefault(); onNavigate('auth', 'ADMIN'); }}>Admin Portal</a>
+            </div>
+
+            {/* Dual Nav: Main Navbar */}
+            <nav className="navbar">
+                <div className="logo" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} style={{ flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.1, gap: 0, cursor: 'pointer' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '2rem' }}>
+                        <svg className="logo-icon" width="36" height="36" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M40 15 C 20 20, 15 50, 40 85 C 60 70, 70 40, 50 15 Z" stroke="var(--primary)" strokeWidth="4" fill="none" strokeLinecap="round"/>
+                            <circle cx="65" cy="25" r="5" fill="var(--primary)"/>
+                            <circle cx="80" cy="35" r="5" fill="var(--primary)"/>
+                            <circle cx="75" cy="55" r="5" fill="var(--primary)"/>
+                            <circle cx="60" cy="65" r="5" fill="var(--primary)"/>
+                            <line x1="30" y1="50" x2="60" y2="28" stroke="var(--primary)" strokeWidth="3"/>
+                            <line x1="25" y1="55" x2="75" y2="38" stroke="var(--primary)" strokeWidth="3"/>
+                            <line x1="25" y1="65" x2="70" y2="55" stroke="var(--primary)" strokeWidth="3"/>
+                            <line x1="35" y1="75" x2="55" y2="65" stroke="var(--primary)" strokeWidth="3"/>
+                        </svg>
+                        ProcFin
+                    </div>
+                    <span style={{ fontSize: '0.6rem', letterSpacing: '0.15em', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase' }}>Purchase Order Financing</span>
                 </div>
-                <div className="hidden md:flex gap-6 text-sm font-medium">
-                    <a href="#how" className="hover:text-blue-600 transition">How it Works</a>
-                    <a href="#categories" className="hover:text-blue-600 transition">Funding Categories</a>
-                    <a href="#suppliers" className="hover:text-blue-600 transition">Verified Suppliers</a>
+                <div className="nav-links">
+                    <a href="#categories">Funding Solutions</a>
+                    <a href="#wizard">How it Works</a>
                 </div>
-                <div className="flex gap-4">
-                    <button onClick={() => onNavigate('auth')} className="text-sm font-medium px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition border border-transparent dark:border-gray-700">Sign In</button>
-                    <button onClick={() => onNavigate('auth')} className="text-sm font-medium px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition shadow-md shadow-blue-500/20">Get Started</button>
+                <div className="auth-buttons">
+                    <button className="btn btn-secondary" onClick={() => onNavigate('auth')}>Login</button>
+                    <button className="btn btn-primary" onClick={() => onNavigate('auth', 'SME')}>Apply for Funding</button>
                 </div>
             </nav>
 
-            <main className="max-w-7xl mx-auto px-6 py-20 flex flex-col md:flex-row items-center gap-16">
-                <div className="flex-1 space-y-8 animate-fade-in-up">
-                    <span className="inline-block bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 px-4 py-1.5 rounded-full text-xs font-bold tracking-wider uppercase border border-blue-200 dark:border-blue-800">
-                        South Africa's #1 SME Platform
-                    </span>
-                    <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight leading-tight">
-                        <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">
-                            Empowering South African Businesses.
-                        </span>
-                    </h1>
-                    <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl leading-relaxed">
-                        Fast, transparent business and tender funding. Get funded directly by our platform funder or receive quotes from national database suppliers.
-                    </p>
-                    <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                        <button
-                            onClick={() => onNavigate('auth', 'SME')}
-                            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-lg font-medium transition-all shadow-lg shadow-blue-500/30 text-center"
-                        >
-                            Get Funded as SME
-                        </button>
-                        <button
-                            onClick={() => onNavigate('auth', 'FUNDER')}
-                            className="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 px-8 py-4 rounded-lg font-medium transition-all text-center"
-                        >
-                            Funder Access
-                        </button>
-                    </div>
-                </div>
- 
-                <div className="flex-1 w-full max-w-md perspective-1000">
-                    <div className="bg-white dark:bg-gray-800/60 backdrop-blur-md rounded-2xl p-8 shadow-2xl border border-gray-100 dark:border-gray-700 transform md:-rotate-y-12 md:rotate-x-6 hover:rotate-0 transition-transform duration-500 relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-bl-full blur-2xl"></div>
-                        <div className="flex justify-between items-center mb-6">
-                            <span className="flex items-center gap-2 text-green-600 dark:text-green-400 text-xs font-bold uppercase tracking-wider bg-green-50 dark:bg-green-900/30 px-3 py-1.5 rounded-full">
-                                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                                Active Request
-                            </span>
+            <main className="content-view" id="main-view" style={{ paddingBottom: '4rem' }}>
+                
+                {/* Hero Section */}
+                <section className="hero hero-enter">
+                    <div className="hero-content">
+                        <span className="badge">Procurement Finance, Redefined</span>
+                        <h1 className="gradient-text">Fund Your Next Big Tender.</h1>
+                        <p>Secure tender funding, vetted suppliers, and automated milestone-based escrow—all in one premium platform designed for modern business.</p>
+                        <div className="hero-actions">
+                            <button className="btn btn-primary btn-large" onClick={() => onNavigate('auth', 'SME')}>Apply for Funding</button>
+                            <button className="btn btn-outline btn-large" onClick={() => onNavigate('auth', 'FUNDER')}>Become a Funder</button>
                         </div>
-                        <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">R250,000 Tender Funding</h3>
-                        <p className="text-gray-500 dark:text-gray-400 text-sm mb-8">Category: Construction Equipment</p>
- 
-                        <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-3 mb-3 border border-gray-200 dark:border-gray-600">
-                            <div className="bg-blue-600 dark:bg-blue-500 h-3 rounded-full w-[85%] relative overflow-hidden">
-                                <div className="absolute top-0 left-0 w-full h-full bg-white/20 animate-shimmer" style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)' }}></div>
+                    </div>
+                    <div className="hero-visual">
+                        <div className="glass-card float-anim">
+                            <div className="card-header">
+                                <span className="status pulse">Escrow Active</span>
+                            </div>
+                            <h3>R2,500,000 Facility</h3>
+                            <p className="subtext">Funder: Capital Partners Ltd</p>
+                            <div className="progress-bar">
+                                <div className="progress" style={{ width: '65%' }}></div>
+                            </div>
+                            <p className="status-text">Milestone 2: Supplier Payment Pending</p>
+                        </div>
+                    </div>
+                </section>
+
+                {/* Funding Categories Slider */}
+                <section className="features-section" id="categories" style={{ marginTop: '6rem' }}>
+                    <h2 style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>Funding Categories</h2>
+                    <p className="subtext" style={{ maxWidth: '600px', margin: '0 auto 2rem auto' }}>ProcFin supports a wide array of purchase order financing categories. Swipe through to see where we deploy capital.</p>
+                    
+                    <div className="horizontal-slider">
+                        {[
+                            { name: 'Construction & Mining', icon: '🏗️', desc: 'Heavy equipment, raw materials, and specialized supplies.' },
+                            { name: 'IT & Technology', icon: '💻', desc: 'Hardware rollouts, software licensing, and networks.' },
+                            { name: 'Medical Supplies', icon: '🏥', desc: 'Pharmaceuticals, hospital equipment, and PPE.' },
+                            { name: 'Logistics & Transport', icon: '🚚', desc: 'Fleet acquisition, fuel supply, and logistics.' },
+                            { name: 'Energy & Utilities', icon: '⚡', desc: 'Solar installations, electrical components.' }
+                        ].map((cat, i) => (
+                            <div key={i} className="category-card" onClick={() => onNavigate('auth', 'SME')}>
+                                <div className="category-icon">{cat.icon}</div>
+                                <h3>{cat.name}</h3>
+                                <p className="subtext">{cat.desc}</p>
+                            </div>
+                        ))}
+                    </div>
+                </section>
+
+                {/* Multi-Step Funding Wizard */}
+                <section className="features-section" id="wizard" style={{ marginTop: '6rem', position: 'relative' }}>
+                    <h2 style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>Calculate & Apply</h2>
+                    <p className="subtext" style={{ maxWidth: '600px', margin: '0 auto 3rem auto' }}>Find out exactly what your Purchase Order financing will cost, and get pre-approved in under 60 seconds.</p>
+                    
+                    <div className="glass-card" style={{ maxWidth: '800px', margin: '0 auto', textAlign: 'left', padding: '2rem' }}>
+                        
+                        {/* Progress Bar */}
+                        <div style={{ marginBottom: '2rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }} className="subtext">
+                                <span style={{ fontWeight: 700, color: 'var(--accent-cyan)' }}>Step {wizardStep} of 4</span>
+                            </div>
+                            <div className="progress-bar" style={{ height: '6px', background: 'rgba(255,255,255,0.1)' }}>
+                                <div className="progress" style={{ width: `${(wizardStep / 4) * 100}%`, background: 'var(--accent-cyan)', transition: 'width 0.3s ease' }}></div>
                             </div>
                         </div>
-                        <p className="text-right text-xs text-gray-500 font-medium">Awaiting Funder Review</p>
+
+                        {/* Step 1: Category */}
+                        <div className={`wizard-step ${wizardStep === 1 ? '' : 'hidden'}`}>
+                            <h3 style={{ marginBottom: '1.5rem' }}>What industry is your Purchase Order in?</h3>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '1rem' }}>
+                                {[
+                                    { name: 'Construction & Mining', icon: '🏗️', label: 'Construction' },
+                                    { name: 'IT & Tech', icon: '💻', label: 'IT & Tech' },
+                                    { name: 'Medical Supplies', icon: '🏥', label: 'Medical' },
+                                    { name: 'Logistics', icon: '🚚', label: 'Logistics' },
+                                    { name: 'Other', icon: '⚡', label: 'Other' }
+                                ].map(cat => (
+                                    <div key={cat.name} className={`cat-card ${category === cat.name ? 'selected' : ''}`} onClick={() => handleCategorySelect(cat.name)}>
+                                        <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>{cat.icon}</div>
+                                        <div>{cat.label}</div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Step 2: Calculator */}
+                        <div className={`wizard-step ${wizardStep === 2 ? '' : 'hidden'}`}>
+                            <h3 style={{ marginBottom: '1.5rem', color: 'var(--accent-cyan)' }}>Funding for {category}</h3>
+                            <div style={{ marginBottom: '2rem' }}>
+                                <label style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, marginBottom: '1rem', fontSize: '1.2rem' }}>
+                                    <span>Purchase Order Value</span>
+                                    <span style={{ color: 'white', fontSize: '1.5rem' }}>{formatRands(amount)}</span>
+                                </label>
+                                <input 
+                                    type="range" 
+                                    min="50000" 
+                                    max="5000000" 
+                                    step="10000" 
+                                    value={amount} 
+                                    className="custom-slider" 
+                                    onChange={(e) => setAmount(parseInt(e.target.value))} 
+                                />
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.5rem' }} className="subtext">
+                                    <span>R 50,000</span>
+                                    <span>R 5,000,000</span>
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginBottom: '2rem', background: 'rgba(0,0,0,0.2)', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                                <div>
+                                    <p className="subtext" style={{ marginBottom: '0.5rem' }}>ProcFin Escrow Fee (20% flat)</p>
+                                    <h3 style={{ fontSize: '1.8rem', color: 'var(--text-muted)' }}>{formatRands(fee)}</h3>
+                                </div>
+                                <div>
+                                    <p className="subtext" style={{ marginBottom: '0.5rem', fontWeight: 700, color: 'white' }}>Total Repayment (in 60 Days)</p>
+                                    <h3 style={{ fontSize: '2.2rem', color: 'var(--accent-cyan)' }}>{formatRands(total)}</h3>
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '1rem' }}>
+                                <button className="btn btn-outline" style={{ flex: 1 }} onClick={() => setWizardStep(1)}>Back</button>
+                                <button className="btn btn-primary" style={{ flex: 2 }} onClick={() => setWizardStep(3)}>Next</button>
+                            </div>
+                        </div>
+
+                        {/* Step 3: Supplier Choice */}
+                        <div className={`wizard-step ${wizardStep === 3 ? '' : 'hidden'}`}>
+                            <h3 style={{ marginBottom: '0.5rem' }}>Procurement & Suppliers</h3>
+                            <p className="subtext" style={{ marginBottom: '2rem' }}>ProcFin pays suppliers directly to guarantee delivery. Do you have a supplier ready?</p>
+                            
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '2rem' }}>
+                                <div className={`cat-card supplier-card ${supplierChoice === 'has_supplier' ? 'selected' : ''}`} onClick={() => handleSupplierSelect('has_supplier')} style={{ padding: '2rem 1rem' }}>
+                                    <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>✅</div>
+                                    <div style={{ fontWeight: 700 }}>Yes, I have a supplier</div>
+                                    <div className="subtext" style={{ fontSize: '0.85rem', marginTop: '0.5rem' }}>We will vet and pay them directly on your behalf.</div>
+                                </div>
+                                <div className={`cat-card supplier-card ${supplierChoice === 'needs_supplier' ? 'selected' : ''}`} onClick={() => handleSupplierSelect('needs_supplier')} style={{ padding: '2rem 1rem' }}>
+                                    <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>🤝</div>
+                                    <div style={{ fontWeight: 700 }}>Match me with one</div>
+                                    <div className="subtext" style={{ fontSize: '0.85rem', marginTop: '0.5rem' }}>Choose from our database of verified in-house suppliers.</div>
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '1rem' }}>
+                                <button className="btn btn-outline" style={{ flex: 1 }} onClick={() => setWizardStep(2)}>Back</button>
+                            </div>
+                        </div>
+
+                        {/* Step 4: Lead Capture */}
+                        <div className={`wizard-step ${wizardStep === 4 ? '' : 'hidden'}`}>
+                            <h3 style={{ marginBottom: '0.5rem' }}>Almost there!</h3>
+                            <p className="subtext" style={{ marginBottom: '2rem' }}>Enter your WhatsApp number so our agents can reach out instantly with approval details.</p>
+                            
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                                <input type="text" className="form-input" placeholder="Full Name" style={{ width: '100%', boxSizing: 'border-box' }} value={leadData.name} onChange={e => setLeadData({...leadData, name: e.target.value})} />
+                                <input type="text" className="form-input" placeholder="Company Name" style={{ width: '100%', boxSizing: 'border-box' }} value={leadData.company} onChange={e => setLeadData({...leadData, company: e.target.value})} />
+                            </div>
+                            <div style={{ marginBottom: '1.5rem' }}>
+                                <input type="email" className="form-input" placeholder="Email Address" style={{ width: '100%', marginBottom: '1rem', boxSizing: 'border-box' }} value={leadData.email} onChange={e => setLeadData({...leadData, email: e.target.value})} />
+                                
+                                <div style={{ position: 'relative' }}>
+                                    <div style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#25D366', fontSize: '1.2rem' }}>
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 00-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.052 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+                                    </div>
+                                    <input type="tel" className="form-input" placeholder="WhatsApp Number" style={{ width: '100%', boxSizing: 'border-box', paddingLeft: '3.2rem', borderColor: 'rgba(37, 211, 102, 0.5)' }} value={leadData.whatsapp} onChange={e => setLeadData({...leadData, whatsapp: e.target.value})} />
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '1rem' }}>
+                                <button className="btn btn-outline" style={{ flex: 1 }} onClick={() => setWizardStep(3)}>Back</button>
+                                <button className="btn btn-primary" style={{ flex: 2 }} onClick={handleLeadSubmit}>Submit Funding Request</button>
+                            </div>
+                        </div>
+
                     </div>
-                </div>
+                </section>
+                
+                {/* Feature Showcase */}
+                <section className="features-section" id="how-it-works" style={{ marginBottom: '4rem', marginTop: '6rem' }}>
+                    <h2 style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>A Seamless Ecosystem</h2>
+                    <p className="subtext" style={{ maxWidth: '600px', margin: '0 auto' }}>ProcFin integrates every step of the procurement process to ensure maximum security for funders and seamless capital for SMEs.</p>
+                    
+                    <div className="features-grid">
+                        <div className="feature-card">
+                            <div className="feature-icon">🔒</div>
+                            <h3>Digital Vault</h3>
+                            <p className="subtext">Upload your compliance documents once. Our secure digital vault ensures instant KYC and fast-tracks your funding applications.</p>
+                        </div>
+                        <div className="feature-card">
+                            <div className="feature-icon">🤝</div>
+                            <h3>Smart Matchmaking</h3>
+                            <p className="subtext">Get connected with vetted funders ready to deploy capital for your specific tender category and verified suppliers.</p>
+                        </div>
+                        <div className="feature-card">
+                            <div className="feature-icon">⚖️</div>
+                            <h3>Secure Escrow</h3>
+                            <p className="subtext">Capital is locked in escrow. ProcFin pays suppliers directly upon proof of delivery, completely neutralizing fund mismanagement.</p>
+                        </div>
+                    </div>
+                </section>
+
             </main>
 
-            {/* How it Works Section */}
-            <section id="how" className="py-24 bg-white dark:bg-gray-900/50">
-                <div className="max-w-7xl mx-auto px-6">
-                    <div className="text-center mb-16">
-                        <h2 className="text-4xl font-black text-gray-900 dark:text-white mb-4">How ProcFin Works</h2>
-                        <p className="text-gray-500 dark:text-gray-400 max-w-2xl mx-auto">A seamless 3-step process to bridge the capital gap for South African businesses.</p>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                        {[
-                            {
-                                step: '01',
-                                title: 'Digital Onboarding',
-                                desc: 'Register your SME or Supplier entity. Upload CIPC docs, Tax Clearance, and BEE certificates to our encrypted Digital Vault for instant compliance scoring.',
-                                icon: '📑'
-                            },
-                            {
-                                step: '02',
-                                title: 'RFQ Generation',
-                                desc: 'Post your requirements for goods or services. Our smart system matches your RFQ with verified suppliers in the national database automatically.',
-                                icon: '📡'
-                            },
-                            {
-                                step: '03',
-                                title: 'Quote Comparison',
-                                desc: 'Receive and verify formal quotes from local suppliers. Compare pricing, delivery timelines, and supplier ratings within your dashboard.',
-                                icon: '📊'
-                            },
-                            {
-                                step: '04',
-                                title: 'Capital Deployment',
-                                desc: 'Once a quote is accepted, get matched with liquidity partners who provide the capital needed to fulfill the contract and pay the supplier.',
-                                icon: '🏦'
-                            }
-                        ].map((item, i) => (
-                            <div key={i} className="relative p-8 rounded-3xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-800/40 hover:border-blue-500/30 transition-all group shadow-sm hover:shadow-xl">
-                                <div className="text-6xl font-black text-blue-600/5 dark:text-blue-400/5 absolute top-4 right-6 group-hover:text-blue-600/10 transition-colors pointer-events-none">{item.step}</div>
-                                <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-2xl mb-6 group-hover:scale-110 transition-transform">
-                                    {item.icon}
-                                </div>
-                                <h4 className="text-lg font-black text-gray-900 dark:text-white mb-3 tracking-tight">{item.title}</h4>
-                                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed font-medium">{item.desc}</p>
-                            </div>
-                        ))}
-                    </div>
+            <footer style={{ textAlign: 'center', padding: '3rem 2rem', borderTop: '1px solid var(--border)', marginTop: '4rem' }}>
+                <div style={{ marginBottom: '1rem' }}>
+                    <span style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 800 }}>ProcFin</span>
                 </div>
-            </section>
-
-            {/* Categories Section */}
-            <section id="categories" className="py-24">
-                <div className="max-w-7xl mx-auto px-6">
-                    <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-6">
-                        <div className="max-w-xl">
-                            <h2 className="text-4xl font-black text-gray-900 dark:text-white mb-4">Funding Categories</h2>
-                            <p className="text-gray-500 dark:text-gray-400">We support a wide range of industries with specialized funding mandates.</p>
-                        </div>
-                        <button onClick={() => onNavigate('auth')} className="text-blue-600 font-bold hover:underline">View all categories &rarr;</button>
-                    </div>
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                        {['Construction', 'Information Tech', 'Agriculture', 'Logistics', 'Healthcare', 'Manufacturing', 'Mining', 'Retail'].map(cat => (
-                            <div key={cat} className="p-6 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl hover:shadow-lg transition-all cursor-pointer group">
-                                <div className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center mb-4 group-hover:bg-blue-600 group-hover:text-white transition-colors">📦</div>
-                                <h5 className="font-bold text-gray-900 dark:text-white">{cat}</h5>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </section>
-
-            {/* Suppliers Section */}
-            <section id="suppliers" className="py-24 bg-blue-600 text-white rounded-[4rem] mx-6 mb-24 overflow-hidden relative">
-                <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full translate-x-1/2 -translate-y-1/2 blur-3xl"></div>
-                <div className="max-w-7xl mx-auto px-12 relative z-10 flex flex-col md:flex-row items-center gap-16">
-                    <div className="flex-1 space-y-6">
-                        <h2 className="text-4xl font-black leading-tight">Join the National <br />Supplier Database</h2>
-                        <p className="text-white/80 leading-relaxed">
-                            Verified suppliers get direct access to funded SME contracts, guaranteed milestone payouts via escrow, and national visibility.
-                        </p>
-                        <button onClick={() => onNavigate('auth', 'SUPPLIER')} className="bg-white text-blue-600 px-8 py-4 rounded-xl font-bold shadow-xl hover:bg-gray-100 transition-all active:scale-95">
-                            Register as Supplier
-                        </button>
-                    </div>
-                    <div className="flex-1 grid grid-cols-2 gap-4">
-                        {[
-                            { label: 'Verified Suppliers', value: '2,400+' },
-                            { label: 'Total RFQs', value: '18k+' },
-                            { label: 'Capital Secured', value: 'R450M+' },
-                            { label: 'Growth rate', value: '24% MoM' }
-                        ].map(stat => (
-                            <div key={stat.label} className="p-6 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20">
-                                <div className="text-2xl font-black mb-1">{stat.value}</div>
-                                <div className="text-[10px] uppercase font-bold tracking-widest text-white/60">{stat.label}</div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </section>
-
-            {/* Testimonials Section */}
-            <section className="py-24 bg-gray-50 dark:bg-gray-900/20">
-                <div className="max-w-7xl mx-auto px-6">
-                    <div className="text-center mb-16">
-                        <h2 className="text-4xl font-black text-gray-900 dark:text-white mb-4">Success Stories</h2>
-                        <p className="text-gray-500 dark:text-gray-400 max-w-2xl mx-auto">Hear from the businesses and suppliers growing with ProcFin.</p>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                        {[
-                            {
-                                type: 'SME',
-                                name: 'Thabo Mndau',
-                                role: 'Director, BuildSA Construction',
-                                text: 'ProcFin transformed our procurement process. We got funded for a R500,000 construction tender in under 48 hours. Absolute game changer.',
-                                icon: '🏗️'
-                            },
-                            {
-                                type: 'SME',
-                                name: 'Sarah Langa',
-                                role: 'Founder, TechNexus Solutions',
-                                text: 'The digital vault made compliance easy. No more chasing paper for every new contract. We stay audit-ready 24/7.',
-                                icon: '💻'
-                            },
-                            {
-                                type: 'Supplier',
-                                name: 'Sipho Nkosi',
-                                role: 'CEO, Nkosi Equipment',
-                                text: 'Since being verified, we’ve seen a 40% increase in contract wins. The guaranteed milestone payouts via escrow give us real peace of mind.',
-                                icon: '⚒️'
-                            },
-                            {
-                                type: 'SME',
-                                name: 'David Khoza',
-                                role: 'Operations, SwiftLogistics',
-                                text: 'Being matched with verified suppliers saved us thousands on our last project. The transparent bidding process is exactly what SA businesses need.',
-                                icon: '🚚'
-                            },
-                            {
-                                type: 'SME',
-                                name: 'Nomusa Zungu',
-                                role: 'Owner, Zungu Manufacturing',
-                                text: 'The Pro tier is worth every cent. Unlimited RFQs means we can scale our business faster than ever before. Highly recommended.',
-                                icon: '⚙️'
-                            },
-                            {
-                                type: 'Supplier',
-                                name: 'Elena Venter',
-                                role: 'Head of Sales, AgriWholesale',
-                                text: 'ProcFin connects us with funded, serious businesses. It eliminates the risk of late payments and bad debt entirely.',
-                                icon: '🌾'
-                            }
-                        ].map((t, i) => (
-                            <div key={i} className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 p-8 rounded-[2.5rem] shadow-sm hover:shadow-xl transition-all relative group">
-                                <div className={`absolute top-0 right-0 px-4 py-1.5 rounded-bl-2xl text-[10px] font-black uppercase tracking-widest ${t.type === 'SME' ? 'bg-blue-50 text-blue-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                                    {t.type}
-                                </div>
-                                <div className="text-3xl mb-6">{t.icon}</div>
-                                <p className="text-gray-600 dark:text-gray-300 italic mb-8 leading-relaxed">"{t.text}"</p>
-                                <div className="flex items-center gap-4">
-                                    <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center font-black text-gray-400">
-                                        {t.name.charAt(0)}
-                                    </div>
-                                    <div>
-                                        <div className="font-bold text-gray-900 dark:text-white">{t.name}</div>
-                                        <div className="text-xs text-gray-500">{t.role}</div>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </section>
-
-            <footer className="text-center p-8 border-t border-gray-200 dark:border-gray-800">
-                <p className="text-gray-500 text-sm">
-                    &copy; {new Date().getFullYear()} ProcFin.
-                    <a href="#" onClick={(e) => { e.preventDefault(); onNavigate('auth', 'ADMIN'); }} className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 ml-4 font-medium transition-colors">
-                        Admin Portal Access
-                    </a>
+                <p className="subtext" style={{ marginBottom: '1rem' }}>Premium Procurement Finance for South Africa</p>
+                <p className="subtext" style={{ fontSize: '0.85rem' }}>
+                    &copy; 2026 ProcFin. All rights reserved. <br/>
+                    <a href="#" onClick={(e) => { e.preventDefault(); onNavigate('auth', 'ADMIN'); }} style={{ color: 'var(--accent-cyan)', textDecoration: 'none', marginTop: '0.5rem', display: 'inline-block' }}>Admin Portal Access</a>
                 </p>
             </footer>
+
         </div>
     );
 }
-
