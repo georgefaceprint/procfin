@@ -5,7 +5,19 @@ export default function Home({ onNavigate }) {
     const [category, setCategory] = useState('');
     const [amount, setAmount] = useState(500000);
     const [supplierChoice, setSupplierChoice] = useState('');
-    const [leadData, setLeadData] = useState({ name: '', company: '', email: '', whatsapp: '' });
+    const [leadData, setLeadData] = useState({ name: '', company: '', email: '', whatsapp: '', province: '', town: '' });
+
+    const saLocations = {
+        "Gauteng": ["Johannesburg", "Pretoria", "Midrand", "Centurion", "Sandton", "Soweto"],
+        "Western Cape": ["Cape Town", "Stellenbosch", "George", "Paarl", "Somerset West"],
+        "KwaZulu-Natal": ["Durban", "Pietermaritzburg", "Richards Bay", "Umhlanga"],
+        "Eastern Cape": ["Gqeberha (PE)", "East London", "Mthatha"],
+        "Free State": ["Bloemfontein", "Welkom"],
+        "Mpumalanga": ["Nelspruit (Mbombela)", "Witbank (eMalahleni)"],
+        "North West": ["Rustenburg", "Mahikeng", "Potchefstroom"],
+        "Limpopo": ["Polokwane", "Tzaneen"],
+        "Northern Cape": ["Kimberley", "Upington"]
+    };
 
     const handleCategorySelect = (cat) => {
         setCategory(cat);
@@ -18,8 +30,8 @@ export default function Home({ onNavigate }) {
     };
 
     const handleLeadSubmit = () => {
-        if (!leadData.name || !leadData.company || !leadData.whatsapp) {
-            alert('Please fill in your Name, Company, and WhatsApp Number to proceed.');
+        if (!leadData.name || !leadData.company || !leadData.whatsapp || !leadData.province || !leadData.town) {
+            alert('Please fill in your Name, Company, WhatsApp Number, and Location to proceed.');
             return;
         }
         // In a real app, save lead data here.
@@ -227,6 +239,33 @@ export default function Home({ onNavigate }) {
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
                                 <input type="text" className="form-input" placeholder="Full Name" style={{ width: '100%', boxSizing: 'border-box' }} value={leadData.name} onChange={e => setLeadData({...leadData, name: e.target.value})} />
                                 <input type="text" className="form-input" placeholder="Company Name" style={{ width: '100%', boxSizing: 'border-box' }} value={leadData.company} onChange={e => setLeadData({...leadData, company: e.target.value})} />
+                            </div>
+                            
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                                <select 
+                                    className="form-input" 
+                                    style={{ width: '100%', boxSizing: 'border-box', appearance: 'none', backgroundColor: 'var(--bg-card)', color: 'var(--text-color)' }} 
+                                    value={leadData.province} 
+                                    onChange={e => setLeadData({...leadData, province: e.target.value, town: ''})}
+                                >
+                                    <option value="" disabled>Select Province</option>
+                                    {Object.keys(saLocations).map(prov => (
+                                        <option key={prov} value={prov}>{prov}</option>
+                                    ))}
+                                </select>
+                                
+                                <select 
+                                    className="form-input" 
+                                    style={{ width: '100%', boxSizing: 'border-box', appearance: 'none', backgroundColor: 'var(--bg-card)', color: 'var(--text-color)' }} 
+                                    value={leadData.town} 
+                                    onChange={e => setLeadData({...leadData, town: e.target.value})}
+                                    disabled={!leadData.province}
+                                >
+                                    <option value="" disabled>Select Town/City</option>
+                                    {leadData.province && saLocations[leadData.province].map(town => (
+                                        <option key={town} value={town}>{town}</option>
+                                    ))}
+                                </select>
                             </div>
                             <div style={{ marginBottom: '1.5rem' }}>
                                 <input type="email" className="form-input" placeholder="Email Address" style={{ width: '100%', marginBottom: '1rem', boxSizing: 'border-box' }} value={leadData.email} onChange={e => setLeadData({...leadData, email: e.target.value})} />
