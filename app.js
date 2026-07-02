@@ -1,440 +1,191 @@
-/* ProcFin Engine - Version 12.67 */
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-import { getFirestore, collection, getDocs, addDoc, setDoc, doc, onSnapshot, getDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-storage.js";
 
-// TODO: Replace this with your actual Firebase config from the console
-const firebaseConfig = {
-    apiKey: "AIzaSyCmoiuwbDodIELIj-TptuEYlIJbVSAKkuQ",
-    authDomain: "procfin.firebaseapp.com",
-    projectId: "procfin",
-    storageBucket: "procfin.firebasestorage.app",
-    messagingSenderId: "719005341578",
-    appId: "1:719005341578:web:da45b21b454c52a7671a73",
-    measurementId: "G-KXN6S8DXB9"
+
+// Global Wizard State for Multi-Step Form
+window.wizard = {
+    category: '',
+    amount: 500000,
+    supplierChoice: '',
+    
+    selectCategory: function(cat, el) {
+        this.category = cat;
+        document.querySelectorAll('.cat-card').forEach(c => c.classList.remove('selected'));
+        el.classList.add('selected');
+        setTimeout(() => this.nextStep(2), 400); // Auto advance
+    },
+
+    selectSupplierChoice: function(choice, el) {
+        this.supplierChoice = choice;
+        document.querySelectorAll('.supplier-card').forEach(c => c.classList.remove('selected'));
+        el.classList.add('selected');
+        setTimeout(() => this.nextStep(4), 400); // Auto advance to final step
+    },
+
+    nextStep: function(step) {
+        document.querySelectorAll('.wizard-step').forEach(s => s.classList.add('hidden'));
+        document.getElementById('step-' + step).classList.remove('hidden');
+        
+        // Update progress bar
+        document.getElementById('wiz-progress').style.width = ((step / 4) * 100) + '%';
+        document.getElementById('wiz-step-text').innerText = 'Step ' + step + ' of 4';
+
+        if (step === 2 && this.category) {
+            document.getElementById('wiz-cat-display').innerText = 'Funding for ' + this.category;
+        }
+    },
+
+    submitLead: function() {
+        const name = document.getElementById('lead-name').value;
+        const company = document.getElementById('lead-company').value;
+        const whatsapp = document.getElementById('lead-whatsapp').value;
+        
+        if (!name || !company || !whatsapp) {
+            alert('Please fill in your Name, Company, and WhatsApp Number to proceed.');
+            return;
+        }
+        // Redirect to Auth after lead capture
+        app.showAuth('SME');
+    }
 };
 
-// Initialize Firebase & Firestore
-const firebaseApp = initializeApp(firebaseConfig);
-const db = getFirestore(firebaseApp);
-const auth = getAuth(firebaseApp);
-const provider = new GoogleAuthProvider();
-const storage = getStorage(firebaseApp);
-
-const STORE_KEY = 'procfin_user';
-
-const app = {
-    user: JSON.parse(localStorage.getItem(STORE_KEY)) || null,
-    docTypes: [],
-    fundingCategories: [],
-    notifications: [],
-    deals: [],
-    rfqs: [],
-    currentView: 'home',
-
-    escapeHTML(unsafe) {
-        return (unsafe || '').toString()
-            .replace(/&/g, "&amp;").replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;").replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
-    },
-
-    async notifySupplierCategory(category, message) {
-        try {
-            const usersSnap = await getDocs(collection(db, "users"));
-            usersSnap.forEach(async (uSnap) => {
-                const ud = uSnap.data();
-                const matchedCategory = (Array.isArray(ud.industry) && ud.industry.includes(category)) || ud.industry === category || category === 'All';
-                if (ud.type === 'SUPPLIER' && matchedCategory) {
-                    this.sendNotification(ud.id, ud.email, message);
-                }
-            });
-        } catch (error) { console.error(error); }
-    },
-
-    async notifyAllFunders(message) {
-        try {
-            const usersSnap = await getDocs(collection(db, "users"));
-            usersSnap.forEach(async (uSnap) => {
-                const ud = uSnap.data();
-                if (ud.type === 'FUNDER' && ud.verified) {
-                    this.sendNotification(ud.id, ud.email, message);
-                }
-            });
-        } catch (error) { console.error("Error notifying funders:", error); }
-    },
-
-    async sendNotification(uid, email, message) {
-        try {
-            // 1. In-App Firestore Notification
-            const docRef = doc(db, "user_notifications", uid);
-            const notifSnap = await getDoc(docRef);
-            let notifs = notifSnap.exists() ? notifSnap.data().data : [];
-            notifs.unshift({ id: Date.now(), text: message, read: false, time: "Just now" });
-            await setDoc(docRef, { data: notifs }, { merge: true });
-
-            // 2. EmailJS Notification (Fallback safe)
-            if (typeof emailjs !== 'undefined') {
-                emailjs.init("YOUR_PUBLIC_KEY"); // User needs to configure this! Do not block if failing.
-
-                emailjs.send("YOUR_SERVICE_ID", "YOUR_TEMPLATE_ID", {
-                    to_email: email,
-                    message: message,
-                    subject: "ProcFin: New Notification"
-                }).then(() => {
-                    console.log(`Email successfully dispatched via EmailJS to ${email}`);
-                }).catch((err) => {
-                    console.warn("EmailJS not fully configured yet, but in-app notification sent.", err);
-                });
-            } else {
-                console.warn("EmailJS script not loaded.");
-            }
-        } catch (e) {
-            console.error("Error sending notification:", e);
-        }
-    },
-
-    saveDocTypes() {
-        setDoc(doc(db, "system_config", "doctypes"), { data: this.docTypes }).catch(console.error);
-    },
-
-    saveFundingCategories() {
-        setDoc(doc(db, "system_config", "categories"), { data: this.fundingCategories }).catch(console.error);
-    },
-
-    saveNotifications() {
-        if (this.user) {
-            setDoc(doc(db, "user_notifications", this.user.id), { data: this.notifications }).catch(console.error);
-        }
-    },
-
-    initUserDB() {
-        onSnapshot(doc(db, "system_config", "doctypes"), (docSnap) => {
-            if (docSnap.exists()) {
-                this.docTypes = docSnap.data().data;
-            } else {
-                this.docTypes = [
-                    { id: 1, name: 'CSD Registration Report', description: 'Central Supplier Database summary report', requiredFor: ['SME', 'SUPPLIER'] },
-                    { id: 2, name: 'Valid Tax Clearance', description: 'SARS Tax Clearance Certificate with PIN', requiredFor: ['SME', 'SUPPLIER'] },
-                    { id: 3, name: '6 Months Bank Statements', description: 'Recent bank statements for affordability assessment', requiredFor: ['SME'] },
-                    { id: 4, name: 'Directors ID Copies', description: 'Certified copies of all active directors', requiredFor: ['SME', 'SUPPLIER'] }
-                ];
-                this.saveDocTypes();
-            }
-        });
-
-        onSnapshot(doc(db, "system_config", "categories"), (docSnap) => {
-            if (docSnap.exists()) {
-                this.fundingCategories = docSnap.data().data;
-                this.fundingCategories = [
-                    { id: 1, name: 'Construction & Civil Works', description: 'General construction, civil engineering, electrical' },
-                    { id: 2, name: 'Media Production & PR', description: 'Video, audio production, marketing, and public relations' },
-                    { id: 3, name: 'Software & IT Development', description: 'App development, networking, bespoke software' },
-                    { id: 4, name: 'Logistics & Supply Chain', description: 'Transport, warehousing, distribution' },
-                    { id: 5, name: 'Cleaning & Facilities Management', description: 'Janitorial, security, pest control' },
-                    { id: 6, name: 'Consulting & Professional Services', description: 'Accounting, legal, management consulting' },
-                    { id: 7, name: 'Medical & Healthcare Products', description: 'Equipment, generic pharmaceuticals, social services' },
-                    { id: 8, name: 'Catering & Event Management', description: 'Food services, corporate events, equipment hire' },
-                    { id: 9, name: 'Agriculture & Agri-processing', description: 'Farming, milling, food packaging' },
-                    { id: 10, name: 'General Supply & Retail', description: 'Stationery, office supplies, protective clothing' }
-                ];
-                this.saveFundingCategories();
-            }
-        });
-
-        if (this.user) {
-            onSnapshot(doc(db, "user_notifications", this.user.id), (docSnap) => {
-                if (docSnap.exists()) {
-                    this.notifications = docSnap.data().data;
-                } else {
-                    this.notifications = [{ id: 1, text: "Welcome to ProcFin! Complete your profile to get started.", read: false, time: "Just now" }];
-                    this.saveNotifications();
-                }
-                this.renderNavbar();
-            });
-
-            onSnapshot(collection(db, "deals"), (snapshot) => {
-                this.deals = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                if (this.currentView === 'dashboard') this.showDashboard();
-            });
-
-            onSnapshot(collection(db, "rfqs"), (snapshot) => {
-                this.rfqs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                if (this.currentView === 'dashboard') this.showDashboard();
-            });
-        }
-    },
-
-    init() {
-        this.loadTheme();
-        this.initUserDB();
-        this.renderNavbar();
-
-        // Handle initial routing based on user state
-        if (this.user) {
-            if (this.user.type !== 'ADMIN' && (!this.user.onboardingComplete)) {
-                this.showOnboarding(this.user.onboardingStep || 1);
-            } else {
-                this.showDashboard();
-            }
-        } else {
-            this.renderHome();
-        }
-    },
-
-    // --- State & Auth ---
-
-    loadTheme() {
-        const savedTheme = localStorage.getItem('procfin_theme') || 'dark-theme';
-        document.body.className = savedTheme;
-        const toggleBtn = document.getElementById('theme-toggle');
-        if (toggleBtn) {
-            toggleBtn.innerHTML = savedTheme === 'dark-theme' ? '☀️' : '🌙';
-        }
-    },
-
-    toggleTheme() {
-        const isDark = document.body.classList.contains('dark-theme');
-        const newTheme = isDark ? 'light-theme' : 'dark-theme';
-        document.body.className = newTheme;
-        localStorage.setItem('procfin_theme', newTheme);
-        const toggleBtn = document.getElementById('theme-toggle');
-        if (toggleBtn) {
-            toggleBtn.innerHTML = isDark ? '🌙' : '☀️';
-        }
-    },
-
-    async login(intentType = 'SME', providerType = 'google') {
-        if (providerType !== 'google') {
-            alert("Simulating " + providerType + " Auth... (This routes to Firebase " + providerType + " Auth Provider in production). Continuing with demo Google login.");
-        }
-
-        try {
-            const result = await signInWithPopup(auth, provider);
-            await this.handleAuthSuccess(result.user, intentType);
-        } catch (error) {
-            console.error("Auth Error:", error);
-            alert("Login Failed: " + error.message);
-        }
-    },
-
-    async processEmailAuth(e, intentType) {
-        e.preventDefault();
-        const action = e.submitter.value; // 'login' or 'register'
-        const email = e.target.email.value;
-        const password = e.target.password.value;
-
-        const originalText = e.submitter.innerHTML;
-        e.submitter.innerHTML = 'Processing...';
-        e.submitter.disabled = true;
-
-        try {
-            let result;
-            if (action === 'register') {
-                result = await createUserWithEmailAndPassword(auth, email, password);
-            } else {
-                result = await signInWithEmailAndPassword(auth, email, password);
-            }
-            await this.handleAuthSuccess(result.user, intentType);
-        } catch (error) {
-            console.error("Email Auth Error:", error);
-            alert("Auth Failed: " + error.message);
-            e.submitter.innerHTML = originalText;
-            e.submitter.disabled = false;
-        }
-    },
-
-    async handleAuthSuccess(user, intentType) {
-        const userRef = doc(db, "users", user.uid);
-        const docSnap = await getDoc(userRef);
-
-        let userData;
-        if (docSnap.exists()) {
-            userData = docSnap.data();
-        } else {
-            // Frontend verification to ensure users don't escalate to ADMIN status
-            let safeIntent = intentType;
-            if (safeIntent === 'ADMIN') {
-                const adminWhitelist = ['faceprint@icloud.com'];
-                if (!adminWhitelist.includes(user.email.toLowerCase())) {
-                    console.warn("Security Alert: Unauthorized attempt to create an Admin. Assigning to SME.");
-                    safeIntent = 'SME';
-                }
-            }
-
-            // First time login - set up the profile mapped to their intent 
-            userData = {
-                id: user.uid,
-                name: this.escapeHTML(user.displayName) || this.escapeHTML(user.email.split('@')[0]),
-                email: user.email,
-                type: safeIntent, // SME, FUNDER, SUPPLIER, or ADMIN
-                subscribed: false,
-                onboardingStep: 1,
-                onboardingComplete: false
-            };
-            await setDoc(userRef, userData);
-        }
-
-        this.user = userData;
-        localStorage.setItem(STORE_KEY, JSON.stringify(userData));
-        this.init();
-    },
-
-    async logout() {
-        try {
-            await signOut(auth);
-            this.user = null;
-            localStorage.removeItem(STORE_KEY);
-            this.init();
-        } catch (error) {
-            console.error("Logout Error:", error);
-        }
-    },
-
-    // --- Navigation & Rendering ---
-
-    renderNavbar() {
-        const authContainer = document.getElementById('auth-container');
-        if (this.user) {
-            const unreadCount = this.notifications.filter(n => !n.read).length;
-
-            authContainer.innerHTML = `
-                <div style="display: flex; align-items: center; gap: 1rem;">
-                    <div style="position: relative; cursor: pointer; padding: 0.5rem;" onclick="app.showNotifications()">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--text-color)" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-                        ${unreadCount > 0 ? `<span style="position: absolute; top: 0; right: 0; background: var(--primary); color: white; border-radius: 50%; width: 18px; height: 18px; font-size: 0.7rem; display: flex; align-items: center; justify-content: center; font-weight: bold;">${unreadCount}</span>` : ''}
-                    </div>
-                    <button class="btn btn-outline btn-sm" style="display: flex; align-items: center; gap: 0.5rem;" onclick="app.showUserProfile()">
-                        <div style="width: 20px; height: 20px; border-radius: 50%; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; font-size: 0.6rem; font-weight: bold;">
-                            ${this.user.name.charAt(0).toUpperCase()}
-                        </div>
-                        <span style="font-weight: 500;">Profile</span>
-                    </button>
-                    <button class="btn btn-secondary" onclick="app.logout()">Sign Out</button>
-                    <button class="btn btn-primary" onclick="app.showDashboard()">Dashboard</button>
-                </div>
-            `;
-        } else {
-            authContainer.innerHTML = `
-                <button class="btn btn-secondary" onclick="app.showAuth()">Sign In</button>
-                <button class="btn btn-primary" onclick="app.showAuth()">Get Started</button>
-            `;
-        }
-    },
-
-    setView(html) {
-        document.getElementById('main-view').innerHTML = html;
-        window.scrollTo(0, 0);
-    },
-
-    // --- Views ---
-
-    renderHome() {
-        this.setView(`
-            <section class="hero hero-enter">
-                <div class="hero-content">
-                    <span class="badge">Procurement Finance, Redefined</span>
-                    <h1 class="gradient-text">Fund Your Next Big Tender.</h1>
-                    <p>Secure tender funding, vetted suppliers, and automated milestone-based escrow—all in one premium platform designed for modern business.</p>
-                    <div class="hero-actions">
-                        <button class="btn btn-primary btn-large" onclick="app.showAuth('SME')">Apply for Funding</button>
-                        <button class="btn btn-outline btn-large" onclick="app.showAuth('FUNDER')">Become a Funder</button>
-                    </div>
-                </div>
-                <div class="hero-visual">
-                    <div class="glass-card float-anim">
-                        <div class="card-header">
-                            <span class="status pulse">Escrow Active</span>
-                        </div>
-                        <h3>R2,500,000 Facility</h3>
-                        <p class="subtext">Funder: Capital Partners Ltd</p>
-                        <div class="progress-bar">
-                            <div class="progress" style="width: 65%"></div>
-                        </div>
-                        <p class="status-text">Milestone 2: Supplier Payment Pending</p>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Funding Categories Slider -->
-            <section class="features-section" id="categories" style="margin-top: 6rem;">
-                <h2 style="font-size: 2.5rem; margin-bottom: 1rem;">Funding Categories</h2>
-                <p class="subtext" style="max-width: 600px; margin: 0 auto 2rem auto;">ProcFin supports a wide array of purchase order financing categories. Swipe through to see where we deploy capital.</p>
+            <!-- Multi-Step Funding Wizard -->
+            <section class="features-section" id="wizard" style="margin-top: 6rem; position: relative;">
+                <h2 style="font-size: 2.5rem; margin-bottom: 1rem;">Calculate & Apply</h2>
+                <p class="subtext" style="max-width: 600px; margin: 0 auto 3rem auto;">Find out exactly what your Purchase Order financing will cost, and get pre-approved in under 60 seconds.</p>
                 
-                <div class="horizontal-slider">
-                    <div class="category-card" onclick="app.showAuth('SME')">
-                        <div class="category-icon">🏗️</div>
-                        <h3>Construction & Mining</h3>
-                        <p class="subtext">Heavy equipment, raw materials, and specialized contracting supplies.</p>
-                    </div>
-                    <div class="category-card" onclick="app.showAuth('SME')">
-                        <div class="category-icon">💻</div>
-                        <h3>IT & Technology</h3>
-                        <p class="subtext">Hardware rollouts, software licensing, and network infrastructure.</p>
-                    </div>
-                    <div class="category-card" onclick="app.showAuth('SME')">
-                        <div class="category-icon">🏥</div>
-                        <h3>Medical Supplies</h3>
-                        <p class="subtext">Pharmaceuticals, hospital equipment, and PPE fulfillment.</p>
-                    </div>
-                    <div class="category-card" onclick="app.showAuth('SME')">
-                        <div class="category-icon">🚚</div>
-                        <h3>Logistics & Transport</h3>
-                        <p class="subtext">Fleet acquisition, fuel supply, and supply chain logistics.</p>
-                    </div>
-                    <div class="category-card" onclick="app.showAuth('SME')">
-                        <div class="category-icon">⚡</div>
-                        <h3>Energy & Utilities</h3>
-                        <p class="subtext">Solar installations, electrical components, and green energy.</p>
-                    </div>
-                </div>
-            </section>
-
-            
-            <!-- Funding Calculator -->
-            <section class="features-section" id="calculator" style="margin-top: 6rem; position: relative;">
-                <h2 style="font-size: 2.5rem; margin-bottom: 1rem;">Calculate Your Funding</h2>
-                <p class="subtext" style="max-width: 600px; margin: 0 auto 3rem auto;">Transparent pricing. No hidden fees. See exactly what your Purchase Order financing will cost over our standard 60-day term.</p>
-                
-                <div class="glass-card" style="max-width: 800px; margin: 0 auto; text-align: left; padding: 3rem;">
+                <div class="glass-card" style="max-width: 800px; margin: 0 auto; text-align: left; padding: 2rem;">
+                    
+                    <!-- Progress Bar -->
                     <div style="margin-bottom: 2rem;">
-                        <label style="display: flex; justify-content: space-between; font-weight: 700; margin-bottom: 1rem; font-size: 1.2rem;">
-                            <span>Purchase Order Value</span>
-                            <span id="calc-principal-display" style="color: var(--accent-cyan); font-size: 1.5rem;">R 500,000</span>
-                        </label>
-                        <input type="range" id="calc-slider" min="50000" max="5000000" step="10000" value="500000" class="custom-slider" oninput="
-                            const val = parseInt(this.value);
-                            const fee = val * 0.20;
-                            const total = val + fee;
-                            const format = (num) => 'R ' + num.toLocaleString('en-ZA');
-                            document.getElementById('calc-principal-display').innerText = format(val);
-                            document.getElementById('calc-fee').innerText = format(fee);
-                            document.getElementById('calc-total').innerText = format(total);
-                            document.getElementById('calc-btn').innerText = 'Apply for ' + format(val) + ' Now';
-                        ">
-                        <div style="display: flex; justify-content: space-between; margin-top: 0.5rem;" class="subtext">
-                            <span>R 50,000</span>
-                            <span>R 5,000,000</span>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;" class="subtext">
+                            <span id="wiz-step-text" style="font-weight: 700; color: var(--accent-cyan);">Step 1 of 4</span>
+                        </div>
+                        <div class="progress-bar" style="height: 6px; background: rgba(255,255,255,0.1);">
+                            <div id="wiz-progress" class="progress" style="width: 25%; background: var(--accent-cyan); transition: width 0.3s ease;"></div>
                         </div>
                     </div>
 
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 3rem; background: rgba(0,0,0,0.1); padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border);">
-                        <div>
-                            <p class="subtext" style="margin-bottom: 0.5rem;">ProcFin Escrow Fee (20% flat)</p>
-                            <h3 id="calc-fee" style="font-size: 1.8rem; color: var(--text-muted);">R 100,000</h3>
-                        </div>
-                        <div>
-                            <p class="subtext" style="margin-bottom: 0.5rem; font-weight: 700; color: var(--text-color);">Total Repayment (in 60 Days)</p>
-                            <h3 id="calc-total" style="font-size: 2.2rem; color: var(--accent-cyan);">R 600,000</h3>
+                    <!-- Step 1: Category -->
+                    <div id="step-1" class="wizard-step">
+                        <h3 style="margin-bottom: 1.5rem;">What industry is your Purchase Order in?</h3>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 1rem;">
+                            <div class="cat-card" onclick="window.wizard.selectCategory('Construction & Mining', this)">
+                                <div style="font-size: 2rem; margin-bottom: 0.5rem;">🏗️</div>
+                                <div>Construction</div>
+                            </div>
+                            <div class="cat-card" onclick="window.wizard.selectCategory('IT & Tech', this)">
+                                <div style="font-size: 2rem; margin-bottom: 0.5rem;">💻</div>
+                                <div>IT & Tech</div>
+                            </div>
+                            <div class="cat-card" onclick="window.wizard.selectCategory('Medical Supplies', this)">
+                                <div style="font-size: 2rem; margin-bottom: 0.5rem;">🏥</div>
+                                <div>Medical</div>
+                            </div>
+                            <div class="cat-card" onclick="window.wizard.selectCategory('Logistics', this)">
+                                <div style="font-size: 2rem; margin-bottom: 0.5rem;">🚚</div>
+                                <div>Logistics</div>
+                            </div>
+                            <div class="cat-card" onclick="window.wizard.selectCategory('Other', this)">
+                                <div style="font-size: 2rem; margin-bottom: 0.5rem;">⚡</div>
+                                <div>Other</div>
+                            </div>
                         </div>
                     </div>
 
-                    <div style="text-align: center;">
-                        <button id="calc-btn" class="btn btn-primary btn-large" style="width: 100%; max-width: 400px;" onclick="app.showAuth('SME')">Apply for R 500,000 Now</button>
+                    <!-- Step 2: Calculator -->
+                    <div id="step-2" class="wizard-step hidden">
+                        <h3 id="wiz-cat-display" style="margin-bottom: 1.5rem; color: var(--accent-cyan);">Funding Request</h3>
+                        <div style="margin-bottom: 2rem;">
+                            <label style="display: flex; justify-content: space-between; font-weight: 700; margin-bottom: 1rem; font-size: 1.2rem;">
+                                <span>Purchase Order Value</span>
+                                <span id="calc-principal-display" style="color: white; font-size: 1.5rem;">R 500,000</span>
+                            </label>
+                            <input type="range" id="calc-slider" min="50000" max="5000000" step="10000" value="500000" class="custom-slider" oninput="
+                                const val = parseInt(this.value);
+                                window.wizard.amount = val;
+                                const fee = val * 0.20;
+                                const total = val + fee;
+                                const format = (num) => 'R ' + num.toLocaleString('en-ZA');
+                                document.getElementById('calc-principal-display').innerText = format(val);
+                                document.getElementById('calc-fee').innerText = format(fee);
+                                document.getElementById('calc-total').innerText = format(total);
+                            ">
+                            <div style="display: flex; justify-content: space-between; margin-top: 0.5rem;" class="subtext">
+                                <span>R 50,000</span>
+                                <span>R 5,000,000</span>
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 2rem; background: rgba(0,0,0,0.2); padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border);">
+                            <div>
+                                <p class="subtext" style="margin-bottom: 0.5rem;">ProcFin Escrow Fee (20% flat)</p>
+                                <h3 id="calc-fee" style="font-size: 1.8rem; color: var(--text-muted);">R 100,000</h3>
+                            </div>
+                            <div>
+                                <p class="subtext" style="margin-bottom: 0.5rem; font-weight: 700; color: white;">Total Repayment (in 60 Days)</p>
+                                <h3 id="calc-total" style="font-size: 2.2rem; color: var(--accent-cyan);">R 600,000</h3>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; gap: 1rem;">
+                            <button class="btn btn-outline" style="flex: 1;" onclick="window.wizard.nextStep(1)">Back</button>
+                            <button class="btn btn-primary" style="flex: 2;" onclick="window.wizard.nextStep(3)">Next</button>
+                        </div>
                     </div>
+
+                    <!-- Step 3: Supplier Choice -->
+                    <div id="step-3" class="wizard-step hidden">
+                        <h3 style="margin-bottom: 0.5rem;">Procurement & Suppliers</h3>
+                        <p class="subtext" style="margin-bottom: 2rem;">ProcFin pays suppliers directly to guarantee delivery. Do you have a supplier ready?</p>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 2rem;">
+                            <div class="cat-card supplier-card" onclick="window.wizard.selectSupplierChoice('has_supplier', this)" style="padding: 2rem 1rem;">
+                                <div style="font-size: 2rem; margin-bottom: 1rem;">✅</div>
+                                <div style="font-weight: 700;">Yes, I have a supplier</div>
+                                <div class="subtext" style="font-size: 0.85rem; margin-top: 0.5rem;">We will vet and pay them directly on your behalf.</div>
+                            </div>
+                            <div class="cat-card supplier-card" onclick="window.wizard.selectSupplierChoice('needs_supplier', this)" style="padding: 2rem 1rem;">
+                                <div style="font-size: 2rem; margin-bottom: 1rem;">🤝</div>
+                                <div style="font-weight: 700;">Match me with one</div>
+                                <div class="subtext" style="font-size: 0.85rem; margin-top: 0.5rem;">Choose from our database of verified in-house suppliers.</div>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; gap: 1rem;">
+                            <button class="btn btn-outline" style="flex: 1;" onclick="window.wizard.nextStep(2)">Back</button>
+                        </div>
+                    </div>
+
+                    <!-- Step 4: Lead Capture -->
+                    <div id="step-4" class="wizard-step hidden">
+                        <h3 style="margin-bottom: 0.5rem;">Almost there!</h3>
+                        <p class="subtext" style="margin-bottom: 2rem;">Enter your WhatsApp number so our agents can reach out instantly with approval details.</p>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                            <input type="text" id="lead-name" class="form-input" placeholder="Full Name" style="width: 100%; box-sizing: border-box;" required>
+                            <input type="text" id="lead-company" class="form-input" placeholder="Company Name" style="width: 100%; box-sizing: border-box;" required>
+                        </div>
+                        <div style="margin-bottom: 1.5rem;">
+                            <input type="email" id="lead-email" class="form-input" placeholder="Email Address" style="width: 100%; margin-bottom: 1rem; box-sizing: border-box;" required>
+                            
+                            <!-- WhatsApp Specific Input -->
+                            <div style="position: relative;">
+                                <div style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: #25D366; font-size: 1.2rem;">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 00-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.052 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+                                </div>
+                                <input type="tel" id="lead-whatsapp" class="form-input" placeholder="WhatsApp Number" style="width: 100%; box-sizing: border-box; padding-left: 3.2rem; border-color: rgba(37, 211, 102, 0.5);" required>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; gap: 1rem;">
+                            <button class="btn btn-outline" style="flex: 1;" onclick="window.wizard.nextStep(3)">Back</button>
+                            <button class="btn btn-primary" style="flex: 2;" onclick="window.wizard.submitLead()">Submit Funding Request</button>
+                        </div>
+                    </div>
+
                 </div>
             </section>
+
+
 
             <!-- Feature Showcase -->
             <section class="features-section" id="how-it-works" style="margin-bottom: 4rem;">
