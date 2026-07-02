@@ -91,6 +91,9 @@ export default function App() {
     if (params && typeof params === 'object' && params.dealId) {
       setViewParam(params.dealId);
       setAuthIntent(null);
+    } else if (params && typeof params === 'object') {
+      setViewParam(params);
+      setAuthIntent(params); 
     } else {
       setViewParam(params);
       setAuthIntent(typeof params === 'string' ? params : null);

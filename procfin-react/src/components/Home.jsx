@@ -35,7 +35,7 @@ export default function Home({ onNavigate }) {
             return;
         }
         // In a real app, save lead data here.
-        onNavigate('auth', 'SME');
+        onNavigate('auth', { role: 'SME', leadData: leadData, amount: amount });
     };
 
     const formatRands = (num) => 'R ' + parseInt(num).toLocaleString('en-ZA');
@@ -47,7 +47,7 @@ export default function Home({ onNavigate }) {
             
             {/* Dual Nav: Utility Bar */}
             <div className="utility-bar">
-                <a href="#" onClick={(e) => { e.preventDefault(); onNavigate('auth', 'SME'); }}>SMEs</a>
+                <a href="#" onClick={(e) => { e.preventDefault(); onNavigate('auth', { role: 'SME', leadData: leadData, amount: amount }); }}>SMEs</a>
                 <a href="#" onClick={(e) => { e.preventDefault(); onNavigate('auth', 'FUNDER'); }}>Funders</a>
                 <a href="#" onClick={(e) => { e.preventDefault(); onNavigate('auth', 'SUPPLIER'); }}>Suppliers</a>
                 <a href="#" onClick={(e) => { e.preventDefault(); onNavigate('auth', 'ADMIN'); }}>Admin Portal</a>

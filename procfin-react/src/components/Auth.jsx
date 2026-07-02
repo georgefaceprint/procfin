@@ -10,7 +10,8 @@ import {
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 
 export default function Auth({ initialIntent = null, onBack, onLogin }) {
-    const [intent, setIntent] = useState(initialIntent);
+    const roleIntent = typeof initialIntent === 'object' && initialIntent !== null ? initialIntent.role : initialIntent;
+    const [intent, setIntent] = useState(roleIntent);
     const [method, setMethod] = useState('select');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -40,6 +41,17 @@ export default function Auth({ initialIntent = null, onBack, onLogin }) {
                     status: 'active',
                     updatedAt: serverTimestamp()
                 };
+            }
+
+            // If initialIntent has lead data from the Wizard, save it!
+            if (typeof initialIntent === 'object' && initialIntent !== null && initialIntent.leadData) {
+                const lead = initialIntent.leadData;
+                userData.companyName = lead.company || '';
+                userData.name = lead.name || userData.name;
+                userData.whatsapp = lead.whatsapp || '';
+                userData.province = lead.province || '';
+                userData.town = lead.town || '';
+                userData.fundingRequested = initialIntent.amount || 0;
             }
 
             await setDoc(userRef, userData);
