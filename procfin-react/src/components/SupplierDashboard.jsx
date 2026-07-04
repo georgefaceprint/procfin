@@ -1,22 +1,49 @@
 import React, { useState, useEffect } from 'react';
-import { db } from '../firebase';
+import { db, functions } from '../firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc, arrayUnion, getDoc } from 'firebase/firestore';
 import { useToast } from './Toast';
+import SupplierCatalog from './SupplierCatalog';
 
-export default function SupplierDashboard({ user, onNavigate }) {
+export default function SupplierDashboard({ user, onNavigate, onUpdateUser }) {
     const [bidRequests, setBidRequests] = useState([]);
+    const [myQuotes, setMyQuotes] = useState([]);
     const [activeDeals, setActiveDeals] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [quoting, setQuoting] = useState(null); // rfqId being quoted
-    const [quoteForm, setQuoteForm] = useState({ amount: '', note: '' });
+    const [quoting, setQuoting] = useState(null);
+    const [quoteForm, setQuoteForm] = useState({ amount: '', deliveryDays: '', note: '', canDeliver: false });
     const [submittingQuote, setSubmittingQuote] = useState(false);
+    const [activeTab, setActiveTab] = useState('bids');
     const toast = useToast();
+
+    const [paywalls, setPaywalls] = useState({
+        supplierFreeQuoteLimit: 7,
+        supplierMaxQuoteValue: 25000,
+        goldQuoteLimit: 25,
+        diamondQuoteLimit: 50
+    });
+
+    useEffect(() => {
+        const fetchSettings = async () => {
+            try {
+                const snap = await getDoc(doc(db, "settings", "paywalls"));
+                if (snap.exists()) {
+                    setPaywalls({
+                        supplierFreeQuoteLimit: snap.data().supplierFreeQuoteLimit || 7,
+                        supplierMaxQuoteValue: snap.data().supplierMaxQuoteValue || 25000,
+                        goldQuoteLimit: snap.data().goldQuoteLimit || 25,
+                        diamondQuoteLimit: snap.data().diamondQuoteLimit || 50
+                    });
+                }
+            } catch (e) {}
+        };
+        fetchSettings();
+    }, []);
 
     useEffect(() => {
         if (!user.id) return;
 
-        // Matching Logic: Fetch all Bidding Open deals and filter by Supplier category
-        const qBidRequests = query(collection(db, "deals"), where("status", "==", "Bidding Open"));
+        // Matching Logic: Fetch all Bidding Open RFQs and filter by Supplier category
+        const qBidRequests = query(collection(db, "rfqs"), where("status", "==", "Bidding Open"));
         const unsubBidRequests = onSnapshot(qBidRequests, (snapshot) => {
             const allBidRequests = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
@@ -33,9 +60,16 @@ export default function SupplierDashboard({ user, onNavigate }) {
             setLoading(false);
         });
 
+        // Listen for all RFQs to track "My Quotes"
+        const supplierId = user.uid || user.id;
+        const qAllRfqs = query(collection(db, "rfqs"));
+        const unsubAllRfqs = onSnapshot(qAllRfqs, (snapshot) => {
+            const allRfqs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setMyQuotes(allRfqs.filter(rfq => rfq.quotes && rfq.quotes.some(q => q.supplierId === supplierId)));
+        });
+
         // Listen for active deals — query by supplierId (UID-based, reliable)
         // Fallback: also match by supplierName for legacy deals that predate the supplierId fix
-        const supplierId = user.uid || user.id;
         const qDeals = query(collection(db, "deals"), where("supplierId", "==", supplierId));
         const qDealsFallback = query(collection(db, "deals"), where("supplierName", "==", user.name || ""));
 
@@ -53,6 +87,7 @@ export default function SupplierDashboard({ user, onNavigate }) {
 
         return () => {
             unsubBidRequests();
+            unsubAllRfqs();
             unsubDeals();
         };
     }, [user.id, user.industry, user.name]);
@@ -64,49 +99,57 @@ export default function SupplierDashboard({ user, onNavigate }) {
         }
         setSubmittingQuote(true);
         try {
-            const supplierId = user.uid || user.id;
-            const dealRef = doc(db, 'deals', deal.id);
+            const supplierId_ = user.uid || user.id;
+            const rfqRef = doc(db, 'rfqs', deal.id);
             const bidAmount = Number(quoteForm.amount);
-            const newBid = {
-                supplierId,
+
+            // Guard: prevent double bidding
+            const existingSnap = await getDoc(rfqRef);
+            const existingQuotes = existingSnap.data()?.quotes || [];
+            if (existingQuotes.some(q => q.supplierId === supplierId_)) {
+                toast.warning('You have already submitted a bid on this tender.');
+                setSubmittingQuote(false);
+                return;
+            }
+
+            const newQuote = {
+                supplierId: supplierId_,
                 supplierName: user.name,
-                isGold: user.isGold || false,
+                isGold: user.subscribed || user.promoted || false,
+                supplierVerified: user.subscribed || false,
+                supplierPlatinum: user.promoted || false,
                 amount: bidAmount,
+                deliveryDays: Number(quoteForm.deliveryDays) || null,
                 note: quoteForm.note,
                 submittedAt: new Date().toISOString(),
             };
 
-            // Calculate logic for lowest bid and margin (Platform margin is difference between funding amount and winning bid)
-            // But wait, what if the bid is higher than the requested amount? It should probably be rejected, but for now we just accept it.
-            const currentLowestBid = deal.winningBidAmount || Infinity;
-            const updates = { bids: arrayUnion(newBid) };
-            
-            if (bidAmount < currentLowestBid) {
+            const updates = { quotes: arrayUnion(newQuote) };
+
+            if (bidAmount < (deal.winningBidAmount || Infinity)) {
                 updates.winningBidAmount = bidAmount;
-                updates.supplierId = supplierId; // Set the winning supplier ID tentatively
-                updates.supplierName = user.name;
-                updates.margin = Number(deal.amount) - bidAmount; // Platform margin
             }
 
-            await updateDoc(dealRef, updates);
+            await updateDoc(rfqRef, updates);
 
-            // Notify SME of new quote
+            // Notify SME that a quote was received
             try {
+                const { setDoc } = await import('firebase/firestore');
                 const notifRef = doc(db, 'user_notifications', deal.smeId);
                 const notifSnap = await getDoc(notifRef);
                 const existing = notifSnap.exists() ? (notifSnap.data().data || []) : [];
                 existing.unshift({
                     id: Date.now(),
-                    text: `💬 ${user.name} submitted a bid of R${bidAmount.toLocaleString()} for your funding request: "${deal.category}"`,
+                    text: `📢 New bid received on tender ${deal.id.substring(0,8).toUpperCase()}: R${bidAmount.toLocaleString()} — ${quoteForm.deliveryDays ? quoteForm.deliveryDays + ' day delivery' : ''}`,
                     read: false,
                     timestamp: Date.now()
                 });
-                const { setDoc } = await import('firebase/firestore');
                 await setDoc(notifRef, { data: existing }, { merge: true });
-            } catch (_) { /* notifications are non-critical */ }
+            } catch (_) {}
 
             setQuoting(null);
-            setQuoteForm({ amount: '', note: '' });
+            setQuoteForm({ amount: '', deliveryDays: '', note: '', canDeliver: false });
+            toast.success('Bid submitted! ProcFin will notify you if you win.');
         } catch (e) {
             console.error('Quote submit error:', e);
             toast.error('Failed to submit quote. Please try again.');
@@ -140,209 +183,354 @@ export default function SupplierDashboard({ user, onNavigate }) {
                 </div>
             </div>
 
-            {!user.subscribed ? (
-                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-3xl p-10 text-center shadow-sm">
-                    <div className="max-w-md mx-auto">
-                        <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">Start Quoting on Tenders</h2>
-                        <p className="text-gray-500 dark:text-gray-400 mb-8 leading-relaxed">
-                            Subscribe as a Verified Supplier to receive direct quotation requests from funded SMEs and secure guaranteed payouts via ProcFin escrow.
-                        </p>
-
-                        <div className="bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-700 rounded-3xl p-8 text-left">
-                            <h4 className="font-bold text-gray-900 dark:text-white mb-2">Verified Supplier Plan</h4>
-                            <div className="text-3xl font-black text-blue-600 dark:text-blue-400 mb-6 font-mono">R499<span className="text-sm font-medium text-gray-400">/mo</span></div>
-                            <ul className="space-y-4 mb-8">
-                                {["Instant RFQ Notifications", "Submit Unlimited Quotes", "Guaranteed Milestone Payouts"].map(item => (
-                                    <li key={item} className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-400">
-                                        <span className="text-emerald-500 font-bold">✓</span> {item}
-                                    </li>
-                                ))}
-                            </ul>
-                            <button onClick={() => onNavigate('subscription')} className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold shadow-xl shadow-blue-500/20 transition-all">Get Verified Now</button>
+            <div className="space-y-6">
+                    {/* Metrics Top Bar */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="bg-[#121318] border border-gray-800/80 rounded-3xl p-6 shadow-sm relative overflow-hidden group">
+                            <div className="absolute -right-4 -top-4 w-24 h-24 bg-cyan-500/10 rounded-full blur-2xl group-hover:bg-cyan-500/20 transition-all duration-700"></div>
+                            <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1 relative z-10">Total Quotes Sent</p>
+                            <p className="text-4xl font-black text-white font-mono relative z-10">{myQuotes.length}</p>
+                        </div>
+                        <div className="bg-[#121318] border border-gray-800/80 rounded-3xl p-6 shadow-sm relative overflow-hidden group">
+                            <div className="absolute -right-4 -top-4 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/20 transition-all duration-700"></div>
+                            <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1 relative z-10">Quotes Won</p>
+                            <p className="text-4xl font-black text-emerald-400 font-mono relative z-10">
+                                {myQuotes.filter(q => q.status === 'Closed (Quote Accepted)' && q.acceptedQuote?.supplierId === (user.uid || user.id)).length}
+                            </p>
+                        </div>
+                        <div className="bg-[#121318] border border-gray-800/80 rounded-3xl p-6 shadow-sm relative overflow-hidden group">
+                            <div className="absolute -right-4 -top-4 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl group-hover:bg-purple-500/20 transition-all duration-700"></div>
+                            <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1 relative z-10">Active Contracts</p>
+                            <p className="text-4xl font-black text-purple-400 font-mono relative z-10">{activeDeals.length}</p>
                         </div>
                     </div>
-                </div>
-            ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <div className="lg:col-span-2 space-y-6">
-                        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-3xl p-8 shadow-sm">
+
+                    {/* Tab Navigation */}
+                    <div className="flex border-b border-gray-800/60 overflow-x-auto whitespace-nowrap">
+                        <button
+                            onClick={() => setActiveTab('bids')}
+                            className={`px-6 py-3 font-bold text-sm border-b-2 transition-all ${activeTab === 'bids' ? 'border-cyan-500 text-cyan-400 font-extrabold' : 'border-transparent text-gray-400 hover:text-white'}`}
+                        >
+                            🎯 Active Bid Board
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('myquotes')}
+                            className={`px-6 py-3 font-bold text-sm border-b-2 transition-all ${activeTab === 'myquotes' ? 'border-emerald-500 text-emerald-400 font-extrabold' : 'border-transparent text-gray-400 hover:text-white'}`}
+                        >
+                            📋 My Quotes & Contracts
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('catalog')}
+                            className={`px-6 py-3 font-bold text-sm border-b-2 transition-all ${activeTab === 'catalog' ? 'border-purple-500 text-purple-400 font-extrabold' : 'border-transparent text-gray-400 hover:text-white'}`}
+                        >
+                            🏪 Sourcing Warehouse Catalog
+                        </button>
+                    </div>
+
+                    {activeTab === 'catalog' ? (
+                        <SupplierCatalog user={user} onUpdateUser={onUpdateUser} onNavigate={onNavigate} />
+                    ) : activeTab === 'myquotes' ? (
+                        <div className="bg-[#121318] border border-gray-800/80 rounded-3xl p-8 shadow-sm">
                             <div className="flex justify-between items-center mb-8">
                                 <div>
-                                    <h3 className="text-xl font-bold text-gray-900 dark:text-white">Active Bid Board</h3>
-                                    <p className="text-sm text-gray-500 dark:text-gray-400">Funding requests open for competitive bidding in your category.</p>
+                                    <h3 className="text-xl font-bold text-gray-900 dark:text-white">My Quotes & Contracts</h3>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">Track the status of all your submitted quotes.</p>
                                 </div>
-                                <span className="px-3 py-1 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold uppercase tracking-widest rounded-full border border-emerald-100 dark:border-emerald-800">Supplier Verified</span>
                             </div>
-
                             <div className="space-y-4">
-                                {bidRequests.map(deal => (
-                                    <div key={deal.id} className="border border-gray-100 dark:border-gray-700 rounded-2xl p-6 hover:shadow-md transition-shadow relative">
-                                        <div className="absolute top-6 right-6 flex flex-col items-end gap-2">
-                                            <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-md">Bidding Open</span>
+                                {myQuotes.length === 0 ? (
+                                    <div className="text-center py-12">
+                                        <p className="text-gray-500 font-bold mb-2">You haven't submitted any quotes yet.</p>
+                                        <p className="text-sm text-gray-600">Head over to the Active Bid Board to find opportunities!</p>
+                                    </div>
+                                ) : (
+                                    myQuotes.map(rfq => {
+                                        const myQuote = rfq.quotes?.find(q => q.supplierId === (user.uid || user.id));
+                                        const isWon = rfq.status === 'Closed (Quote Accepted)' && rfq.acceptedQuote?.supplierId === (user.uid || user.id);
+                                        const isLost = rfq.status === 'Closed (Quote Accepted)' && !isWon;
+                                        
+                                        let statusColor = "bg-amber-500/10 text-amber-400 border-amber-500/20";
+                                        let statusText = "Pending Review";
+                                        
+                                        if (isWon) {
+                                            statusColor = "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
+                                            statusText = "Won - Active Contract";
+                                        } else if (isLost) {
+                                            statusColor = "bg-red-500/10 text-red-400 border-red-500/20";
+                                            statusText = "Rejected (Lost Bid)";
+                                        }
+
+                                        return (
+                                            <div key={rfq.id} className="bg-[#1a1c23]/60 border border-gray-800/60 p-5 rounded-2xl flex justify-between items-center">
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-3 mb-1">
+                                                        <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 border rounded-lg ${statusColor}`}>
+                                                            {statusText}
+                                                        </span>
+                                                        <span className="text-[10px] text-gray-500">{new Date(myQuote?.submittedAt || rfq.createdAt).toLocaleDateString('en-ZA')}</span>
+                                                    </div>
+                                                    <h4 className="text-base font-bold text-white mt-2">{rfq.title}</h4>
+                                                    <p className="text-xs text-gray-500 mt-1">Category: {rfq.category}</p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-[10px] uppercase font-black tracking-widest text-gray-500 mb-1">Your Bid</p>
+                                                    <p className="text-2xl font-black text-white font-mono">R{myQuote?.amount.toLocaleString()}</p>
+                                                </div>
+                                            </div>
+                                        );
+                                    })
+                                )}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                            <div className="lg:col-span-2 space-y-6">
+                                <div className="bg-[#121318] border border-gray-800/80 rounded-3xl p-8 shadow-sm">
+                                    <div className="flex justify-between items-center mb-8">
+                                        <div>
+                                            <h3 className="text-xl font-bold text-gray-900 dark:text-white">Active Bid Board</h3>
+                                            <p className="text-sm text-gray-500 dark:text-gray-400">Funding requests open for competitive bidding in your category.</p>
                                         </div>
-                                        <div className="max-w-[75%] mb-4">
-                                            <h4 className="text-lg font-bold text-gray-900 dark:text-white mb-1">Procurement for: {deal.category}</h4>
-                                            <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2">
-                                                <span>Client: {deal.smeName}</span>
-                                                <span>•</span>
-                                                <span>Funding Value: R{Number(deal.amount).toLocaleString()}</span>
-                                            </p>
-                                        </div>
-                                        <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl mb-6">
-                                            <p className="text-[10px] uppercase font-black tracking-widest text-gray-400 mb-2">Technical Specifications (De-priced)</p>
-                                            <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
-                                                {deal.specs}
-                                            </p>
-                                        </div>
-                                        <div className="flex justify-between items-center pt-4 border-t border-gray-50 dark:border-gray-700/50">
-                                            <div className="text-xs text-gray-400">
-                                                Deal ID: {deal.id.substring(0, 8).toUpperCase()} • {deal.bids?.length || 0} Bids Received
+                                        <span className="px-3 py-1 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold uppercase tracking-widest rounded-full border border-emerald-100 dark:border-emerald-800">Supplier Verified</span>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        {bidRequests.map(deal => (
+                                            <div key={deal.id} className="bg-[#121318] border border-gray-800/60 rounded-2xl p-6 hover:border-cyan-500/20 transition-all relative">
+                                                {/* Header — NO client name, NO funding value shown to supplier */}
+                                                <div className="flex justify-between items-start mb-4">
+                                                    <div className="flex-1 max-w-[70%]">
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-lg">📢 Open Tender</span>
+                                                            <span className="text-[10px] text-gray-600">{deal.quotes?.length || 0} quotes received</span>
+                                                        </div>
+                                                        <h4 className="text-base font-black text-white">Category: {deal.category}</h4>
+                                                        <p className="text-xs text-gray-600 mt-0.5">Tender ID: {deal.id.substring(0, 8).toUpperCase()} · Opened {deal.createdAt ? new Date(deal.createdAt).toLocaleDateString('en-ZA') : '—'}</p>
+                                                    </div>
+                                                    {deal.quotes?.some(q => q.supplierId === (user.uid || user.id)) && (
+                                                        <span className="text-[10px] font-black uppercase tracking-widest px-2 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg">✓ Bid Submitted</span>
+                                                    )}
+                                                </div>
+
+                                                {/* De-priced specs — safe to show */}
+                                                <div className="bg-[#1a1c23]/60 border border-gray-800/60 p-4 rounded-xl mb-5">
+                                                    <p className="text-[10px] uppercase font-black tracking-widest text-gray-500 mb-2">Procurement Specifications</p>
+                                                    <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">{deal.specs}</p>
+                                                </div>
+
+                                                {/* Current lowest bid — anonymous */}
                                                 {deal.winningBidAmount && (
-                                                    <span className="ml-2 text-emerald-600 font-bold hidden md:inline">
-                                                        (Current lowest bid: R{deal.winningBidAmount.toLocaleString()})
-                                                    </span>
+                                                    <div className="flex items-center gap-2 mb-4 text-xs">
+                                                        <span className="text-gray-600">Current lowest bid:</span>
+                                                        <span className="font-black text-cyan-400 font-mono">R{deal.winningBidAmount.toLocaleString()}</span>
+                                                        <span className="text-gray-700">— beat this to lead</span>
+                                                    </div>
+                                                )}
+
+                                                {/* Submit Bid button */}
+                                                {!deal.quotes?.some(q => q.supplierId === (user.uid || user.id)) ? (
+                                                    <div>
+                                                        <button
+                                                            onClick={() => {
+                                                                setQuoting(quoting === deal.id ? null : deal.id);
+                                                                setQuoteForm({ amount: '', deliveryDays: '', note: '', canDeliver: false });
+                                                            }}
+                                                            className="w-full py-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white rounded-xl text-sm font-black transition-all active:scale-95">
+                                                            {quoting === deal.id ? 'Cancel' : '📤 Submit Your Bid'}
+                                                        </button>
+
+                                                        {quoting === deal.id && (
+                                                            <div className="mt-4 p-5 bg-cyan-500/5 border border-cyan-500/20 rounded-2xl space-y-4">
+                                                                <p className="text-xs font-black uppercase tracking-widest text-cyan-400">Your Competitive Bid — Suppliers Quote Blind</p>
+                                                                <p className="text-[10px] text-gray-600">⚠️ You cannot see the SME's contract value or client. ProcFin selects the lowest verified bid.</p>
+                                                                <div className="grid grid-cols-2 gap-3">
+                                                                    <div>
+                                                                        <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5">Your Total Price (ZAR) *</label>
+                                                                        <div className="relative">
+                                                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-sm">R</span>
+                                                                            <input type="number" placeholder="e.g. 280000"
+                                                                                value={quoteForm.amount}
+                                                                                onChange={e => setQuoteForm({ ...quoteForm, amount: e.target.value })}
+                                                                                className="w-full bg-[#1a1c23] border border-gray-700 rounded-xl pl-8 pr-4 py-2.5 text-white text-sm outline-none focus:ring-1 focus:ring-cyan-500 font-mono" />
+                                                                        </div>
+                                                                    </div>
+                                                                    <div>
+                                                                        <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5">Delivery (Days) *</label>
+                                                                        <input type="number" placeholder="e.g. 14"
+                                                                            value={quoteForm.deliveryDays}
+                                                                            onChange={e => setQuoteForm({ ...quoteForm, deliveryDays: e.target.value })}
+                                                                            className="w-full bg-[#1a1c23] border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:ring-1 focus:ring-cyan-500 font-mono" />
+                                                                    </div>
+                                                                </div>
+                                                                <input type="text" placeholder="Notes: brands, certifications, logistics detail..."
+                                                                    value={quoteForm.note}
+                                                                    onChange={e => setQuoteForm({ ...quoteForm, note: e.target.value })}
+                                                                    className="w-full bg-[#1a1c23] border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:ring-1 focus:ring-cyan-500" />
+                                                                <label className="flex items-center gap-2 cursor-pointer mb-2">
+                                                                    <input type="checkbox" checked={quoteForm.canDeliver}
+                                                                        onChange={e => setQuoteForm({ ...quoteForm, canDeliver: e.target.checked })}
+                                                                        className="accent-cyan-500" />
+                                                                    <span className="text-xs text-gray-400">I confirm I can deliver the full specification on time</span>
+                                                                </label>
+                                                                
+                                                                {(() => {
+                                                                    const isFreeTier = !user.subscribed && !user.promoted;
+                                                                    const quoteAmountNum = Number(quoteForm.amount || 0);
+                                                                    const supplierBidCount = myQuotes.length;
+                                                                    
+                                                                    let quoteLimit = paywalls.supplierFreeQuoteLimit;
+                                                                    let tierName = "Free";
+                                                                    
+                                                                    if (!isFreeTier) {
+                                                                        if (user.plan === 'Diamond Supplier') {
+                                                                            quoteLimit = paywalls.diamondQuoteLimit;
+                                                                            tierName = "Diamond";
+                                                                        } else if (user.plan === 'Platinum Supplier' || user.plan === 'Featured Partner (Monthly Platinum)') {
+                                                                            quoteLimit = Infinity;
+                                                                            tierName = "Platinum";
+                                                                        } else {
+                                                                            quoteLimit = paywalls.goldQuoteLimit; // Default to gold for any legacy paid plans
+                                                                            tierName = "Gold";
+                                                                        }
+                                                                    }
+                                                                    
+                                                                    const limitValueHit = isFreeTier && quoteAmountNum > paywalls.supplierMaxQuoteValue;
+                                                                    const limitCountHit = supplierBidCount >= quoteLimit;
+                                                                    
+                                                                    if (limitValueHit) {
+                                                                        return (
+                                                                            <button onClick={() => onNavigate('subscription')} className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-sm transition-all shadow-lg shadow-indigo-500/20">
+                                                                                🛡️ Upgrade to Gold to quote over R{paywalls.supplierMaxQuoteValue.toLocaleString()}
+                                                                            </button>
+                                                                        );
+                                                                    }
+                                                                    if (limitCountHit) {
+                                                                        return (
+                                                                            <button onClick={() => onNavigate('subscription')} className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-sm transition-all shadow-lg shadow-indigo-500/20">
+                                                                                💎 Upgrade Tier (Quote limit of {quoteLimit} reached for {tierName} Plan)
+                                                                            </button>
+                                                                        );
+                                                                    }
+                                                                    
+                                                                    return (
+                                                                        <button
+                                                                            onClick={() => handleSubmitQuote(deal)}
+                                                                            disabled={submittingQuote || !quoteForm.amount || !quoteForm.deliveryDays || !quoteForm.canDeliver}
+                                                                            className="w-full py-3 bg-cyan-500 hover:bg-cyan-600 text-black rounded-xl font-black text-sm transition-all disabled:opacity-50">
+                                                                            {submittingQuote ? 'Submitting...' : `📤 Submit Bid — R${quoteAmountNum.toLocaleString()}`}
+                                                                        </button>
+                                                                    );
+                                                                })()}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <div className="py-3 text-center text-xs text-emerald-400 font-bold bg-emerald-500/5 border border-emerald-500/20 rounded-xl">
+                                                        ✓ Your bid is in. ProcFin will notify you of the outcome.
+                                                    </div>
                                                 )}
                                             </div>
-                                            <button
-                                                onClick={() => {
-                                                    setQuoting(quoting === deal.id ? null : deal.id);
-                                                    setQuoteForm({ amount: '', note: '' });
-                                                }}
-                                                className="px-5 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-xs font-bold hover:opacity-90 transition-opacity">
-                                                {quoting === deal.id ? 'Cancel' : 'Submit Bid'}
-                                            </button>
-                                        </div>
-                                        {/* Inline Quote Form */}
-                                        {quoting === deal.id && (
-                                            <div className="mt-4 p-5 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-2xl animate-fade-in">
-                                                <p className="text-xs font-black uppercase tracking-widest text-blue-700 dark:text-blue-400 mb-4">Your Formal Bid</p>
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                                                    <div className="relative">
-                                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-sm">R</span>
-                                                        <input
-                                                            type="number"
-                                                            placeholder="Your bid amount"
-                                                            value={quoteForm.amount}
-                                                            onChange={e => setQuoteForm({ ...quoteForm, amount: e.target.value })}
-                                                            className="w-full bg-white dark:bg-gray-800 border border-blue-200 dark:border-blue-700 rounded-xl pl-8 pr-4 py-2.5 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 outline-none font-mono"
-                                                        />
-                                                    </div>
-                                                    <input
-                                                        type="text"
-                                                        placeholder="Brief note (delivery time, etc.)"
-                                                        value={quoteForm.note}
-                                                        onChange={e => setQuoteForm({ ...quoteForm, note: e.target.value })}
-                                                        className="w-full bg-white dark:bg-gray-800 border border-blue-200 dark:border-blue-700 rounded-xl px-4 py-2.5 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                                                    />
-                                                </div>
-                                                <button
-                                                    onClick={() => handleSubmitQuote(deal)}
-                                                    disabled={submittingQuote || !quoteForm.amount}
-                                                    className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-xs shadow-lg shadow-blue-500/20 transition-all disabled:opacity-50">
-                                                    {submittingQuote ? 'Submitting...' : `Submit Bid — R${Number(quoteForm.amount || 0).toLocaleString()}`}
-                                                </button>
+                                        ))}
+                                        {bidRequests.length === 0 && !loading && (
+                                            <div className="py-12 text-center text-gray-400 italic">
+                                                No quotation requests currently match your industry mandate.
+                                            </div>
+                                        )}
+                                        {loading && (
+                                            <div className="py-12 text-center text-gray-400">
+                                                Scanning national database...
                                             </div>
                                         )}
                                     </div>
-                                ))}
-                                {bidRequests.length === 0 && !loading && (
-                                    <div className="py-12 text-center text-gray-400 italic">
-                                        No quotation requests currently match your industry mandate.
-                                    </div>
-                                )}
-                                {loading && (
-                                    <div className="py-12 text-center text-gray-400">
-                                        Scanning national database...
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-3xl p-8 shadow-sm">
-                            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Escrow Payouts & Active Contracts</h3>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-8">Upload proof of delivery to trigger automatic milestone releases.</p>
-
-                            {activeDeals.length === 0 ? (
-                                <div className="py-12 text-center">
-                                    <div className="text-4xl mb-4 opacity-10">📄</div>
-                                    <p className="text-gray-400 text-sm italic">No active funded contracts yet.</p>
                                 </div>
-                            ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {activeDeals.map(deal => (
-                                        <div key={deal.id} className="bg-gray-50 dark:bg-gray-900/40 p-5 rounded-2xl border border-blue-100 dark:border-blue-900/30 transition-all hover:border-blue-500/30">
-                                            <div className="flex justify-between items-start mb-4">
-                                                <div className="max-w-[70%]">
-                                                    <h4 className="font-bold text-gray-900 dark:text-white truncate">Active: {deal.category}</h4>
-                                                    <div className="flex items-center gap-2 mt-1">
-                                                        <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest">SME: {deal.smeName}</p>
-                                                        {(deal.status === 'Capital Secured' || deal.status === 'Waybill Uploaded' || deal.status === 'Delivery Confirmed') && (
-                                                            <span className="text-[9px] font-black uppercase tracking-tighter text-emerald-600 flex items-center gap-0.5">
-                                                                <span className="text-xs">🔒</span> CASH SECURED
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${deal.status === 'Delivery Confirmed'
-                                                    ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400'
-                                                    : deal.status === 'Waybill Uploaded'
-                                                        ? 'bg-purple-50 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400'
-                                                        : 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
-                                                    }`}>
-                                                    {deal.status === 'Delivery Confirmed' ? '✓ 100% Paid'
-                                                        : deal.status === 'Waybill Uploaded' ? '70% Paid'
-                                                            : '30% Paid'}
-                                                </span>
-                                            </div>
-                                            <p className="text-xs text-gray-500 mb-6">Funder: {deal.funderName}</p>
-                                            <button
-                                                onClick={() => onNavigate('supplier-milestones', { dealId: deal.id })}
-                                                className="w-full py-2.5 bg-white dark:bg-gray-800 text-gray-700 dark:text-white rounded-xl text-xs font-bold border border-gray-200 dark:border-gray-700 hover:bg-gray-50 transition-colors"
-                                            >
-                                                {deal.status === 'Delivery Confirmed' ? 'View Details' : 'Upload Waybill'}
-                                            </button>
+
+                                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-3xl p-8 shadow-sm">
+                                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Escrow Payouts &amp; Active Contracts</h3>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-8">Upload proof of delivery to trigger automatic milestone releases.</p>
+
+                                    {activeDeals.length === 0 ? (
+                                        <div className="py-12 text-center">
+                                            <div className="text-4xl mb-4 opacity-10">📄</div>
+                                            <p className="text-gray-400 text-sm italic">No active funded contracts yet.</p>
                                         </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="space-y-6">
-                        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-3xl p-8 shadow-sm">
-                            <h4 className="font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
-                                <span>📋</span> Supplier Profile
-                            </h4>
-                            <div className="space-y-4">
-                                <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
-                                    <span>Official Name</span>
-                                    <span className="font-bold text-gray-900 dark:text-white text-right">{user.name}</span>
-                                </div>
-                                <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
-                                    <span>Supplier ID</span>
-                                    <span className="font-mono text-blue-600 dark:text-blue-400">PR-SUP-{user.id?.substring(0, 4).toUpperCase()}</span>
-                                </div>
-                                <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
-                                    <span>Categories</span>
-                                    <span className="text-gray-900 dark:text-white text-right max-w-[50%]">{Array.isArray(user.industry) ? user.industry.join(', ') : (user.industry || 'All')}</span>
+                                    ) : (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            {activeDeals.map(deal => (
+                                                <div key={deal.id} className="bg-gray-50 dark:bg-gray-900/40 p-5 rounded-2xl border border-blue-100 dark:border-blue-900/30 transition-all hover:border-blue-500/30">
+                                                    <div className="flex justify-between items-start mb-4">
+                                                        <div className="max-w-[70%]">
+                                                            <h4 className="font-bold text-gray-900 dark:text-white truncate">Active: {deal.category}</h4>
+                                                            <div className="flex items-center gap-2 mt-1">
+                                                                <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest">SME: {deal.smeName}</p>
+                                                                {(deal.status === 'Capital Secured' || deal.status === 'Waybill Uploaded' || deal.status === 'Delivery Confirmed') && (
+                                                                    <span className="text-[9px] font-black uppercase tracking-tighter text-emerald-600 flex items-center gap-0.5">
+                                                                        <span className="text-xs">🔒</span> CASH SECURED
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${deal.status === 'Delivery Confirmed'
+                                                            ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400'
+                                                            : deal.status === 'Waybill Uploaded'
+                                                                ? 'bg-purple-50 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400'
+                                                                : 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
+                                                            }`}>
+                                                            {deal.status === 'Delivery Confirmed' ? '✓ 100% Paid'
+                                                                : deal.status === 'Waybill Uploaded' ? '70% Paid'
+                                                                    : '30% Paid'}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-xs text-gray-500 mb-6">Funder: {deal.funderName}</p>
+                                                    <button
+                                                        onClick={() => onNavigate('supplier-milestones', { dealId: deal.id })}
+                                                        className="w-full py-2.5 bg-white dark:bg-gray-800 text-gray-700 dark:text-white rounded-xl text-xs font-bold border border-gray-200 dark:border-gray-700 hover:bg-gray-50 transition-colors"
+                                                    >
+                                                        {deal.status === 'Delivery Confirmed' ? 'View Details' : 'Upload Waybill'}
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
-                            <button onClick={() => onNavigate('profile-edit')} className="w-full mt-8 py-3 bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-white rounded-xl text-sm font-bold border border-gray-100 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">Update Match Criteria</button>
-                        </div>
 
-                        <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-3xl p-8 text-white relative overflow-hidden shadow-xl shadow-indigo-500/20">
-                            <div className="absolute top-0 right-0 p-4 opacity-10 text-6xl">🔒</div>
-                            <h4 className="text-lg font-bold mb-2">Guaranteed Payment</h4>
-                            <p className="text-white/70 text-sm mb-6 leading-relaxed">
-                                All RFQs on ProcFin are pre-funded or backed by verified funding facilities. Your payment is held in escrow from the moment you accept a contract.
-                            </p>
-                            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-white/50">
-                                <span>Secure Escrow v2.4</span>
+                            <div className="space-y-6">
+                                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-3xl p-8 shadow-sm">
+                                    <h4 className="font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+                                        <span>📋</span> Supplier Profile
+                                    </h4>
+                                    <div className="space-y-4">
+                                        <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
+                                            <span>Official Name</span>
+                                            <span className="font-bold text-gray-900 dark:text-white text-right">{user.name}</span>
+                                        </div>
+                                        <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
+                                            <span>Supplier ID</span>
+                                            <span className="font-mono text-blue-600 dark:text-blue-400">PR-SUP-{user.id?.substring(0, 4).toUpperCase()}</span>
+                                        </div>
+                                        <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
+                                            <span>Categories</span>
+                                            <span className="text-gray-900 dark:text-white text-right max-w-[50%]">{Array.isArray(user.industry) ? user.industry.join(', ') : (user.industry || 'All')}</span>
+                                        </div>
+                                    </div>
+                                    <button onClick={() => onNavigate('profile-edit')} className="w-full mt-8 py-3 bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-white rounded-xl text-sm font-bold border border-gray-100 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">Update Match Criteria</button>
+                                </div>
+
+                                <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-3xl p-8 text-white relative overflow-hidden shadow-xl shadow-indigo-500/20">
+                                    <div className="absolute top-0 right-0 p-4 opacity-10 text-6xl">🔒</div>
+                                    <h4 className="text-lg font-bold mb-2">Guaranteed Payment</h4>
+                                    <p className="text-white/70 text-sm mb-6 leading-relaxed">
+                                        All RFQs on ProcFin are pre-funded or backed by verified funding facilities. Your payment is held in escrow from the moment you accept a contract.
+                                    </p>
+                                    <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-white/50">
+                                        <span>Secure Escrow v2.4</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    )}
                 </div>
-            )}
         </div>
     );
 }
+

@@ -2,17 +2,11 @@ import React, { useState } from 'react';
 import { db } from '../firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { useToast } from './Toast';
+import { CATEGORIES } from '../constants/categories';
 
 const PROVINCES = [
     "Eastern Cape", "Free State", "Gauteng", "KwaZulu-Natal",
     "Limpopo", "Mpumalanga", "Northern Cape", "North West", "Western Cape"
-];
-
-const CATEGORIES = [
-    "IT Hardware", "Construction Materials", "Logistics", "Textiles",
-    "Office Supplies", "Fuel", "Industrial Tools", "Consultancy",
-    "Agriculture", "Healthcare & PPE", "Cleaning & Hygiene", "Catering & Events",
-    "Security Services", "Engineering", "Renewable Energy", "Printing & Branding"
 ];
 
 export default function ProfileEdit({ user, onBack, onSaved }) {
@@ -28,6 +22,8 @@ export default function ProfileEdit({ user, onBack, onSaved }) {
         preferredCategories: Array.isArray(user.preferredCategories)
             ? user.preferredCategories
             : (Array.isArray(user.industry) ? user.industry : (user.industry ? [user.industry] : [])),
+        newPin: '',
+        confirmPin: '',
     });
 
     const toggleCategory = (cat) => {
@@ -50,9 +46,22 @@ export default function ProfileEdit({ user, onBack, onSaved }) {
             return;
         }
 
+        // Passcode PIN validation
+        const pinTrimmed = form.newPin.trim();
+        if (pinTrimmed) {
+            if (!/^\d{5}$/.test(pinTrimmed)) {
+                toast.warning('Your passcode must be exactly 5 digits.');
+                return;
+            }
+            if (pinTrimmed !== form.confirmPin.trim()) {
+                toast.warning('Confirm passcode does not match.');
+                return;
+            }
+        }
+
         setLoading(true);
         try {
-            await setDoc(doc(db, 'users', user.uid || user.id), {
+            const updates = {
                 name: form.name,
                 registrationNumber: form.registrationNumber,
                 phone: form.phone,
@@ -61,11 +70,23 @@ export default function ProfileEdit({ user, onBack, onSaved }) {
                 industry: form.preferredCategories,
                 preferredCategories: form.preferredCategories,
                 profileCompleted: true,
-            }, { merge: true });
+            };
+
+            if (pinTrimmed) {
+                updates.pinHash = btoa(pinTrimmed);
+            }
+
+            await setDoc(doc(db, 'users', user.uid || user.id), updates, { merge: true });
 
             setSaved(true);
             setTimeout(() => {
-                onSaved && onSaved({ ...user, ...form, industry: form.preferredCategories, profileCompleted: true });
+                onSaved && onSaved({ 
+                    ...user, 
+                    ...form, 
+                    industry: form.preferredCategories, 
+                    profileCompleted: true,
+                    ...(pinTrimmed ? { pinHash: btoa(pinTrimmed) } : {}) 
+                });
             }, 1200);
         } catch (err) {
             console.error('Profile save error:', err);
@@ -254,6 +275,45 @@ export default function ProfileEdit({ user, onBack, onSaved }) {
                                 ))}
                             </div>
                         )}
+                    </div>
+
+                    {/* Section 4: Security Settings */}
+                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-3xl p-8 shadow-sm">
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+                            <span className="w-7 h-7 rounded-lg bg-red-50 dark:bg-red-900/30 flex items-center justify-center text-sm">🔒</span>
+                            Security Settings (Passcode / PIN)
+                        </h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-5">
+                            Update your 5-digit passcode. This passcode will be used for fast logins in the future instead of SMS OTP. Leave blank if you don't want to change it.
+                        </p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">New 5-digit Passcode</label>
+                                <input
+                                    type="password"
+                                    maxLength={5}
+                                    pattern="[0-9]*"
+                                    inputMode="numeric"
+                                    value={form.newPin}
+                                    onChange={e => setForm({ ...form, newPin: e.target.value.replace(/\D/g, '') })}
+                                    className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all font-mono tracking-[0.3em] text-center text-lg"
+                                    placeholder="•••••"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Confirm Passcode</label>
+                                <input
+                                    type="password"
+                                    maxLength={5}
+                                    pattern="[0-9]*"
+                                    inputMode="numeric"
+                                    value={form.confirmPin}
+                                    onChange={e => setForm({ ...form, confirmPin: e.target.value.replace(/\D/g, '') })}
+                                    className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all font-mono tracking-[0.3em] text-center text-lg"
+                                    placeholder="•••••"
+                                />
+                            </div>
+                        </div>
                     </div>
 
                     {/* Info note about Vault */}

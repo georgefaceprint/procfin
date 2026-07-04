@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, query, where, onSnapshot, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { useToast } from './Toast';
+import { Search, ClipboardList, Banknote, UserCircle, ShieldCheck, Calculator, ShoppingCart, Sparkles, ChevronRight } from 'lucide-react';
 
 export default function SmeDashboard({ user, onNavigate }) {
     const [rfqs, setRfqs] = useState([]);
@@ -328,251 +329,167 @@ export default function SmeDashboard({ user, onNavigate }) {
     };
 
     // ─── RENDER ───────────────────────────────────────────────────────────────
+    
+    const gridItems = [
+        { id: 'rfq', label: 'Tenders', icon: ClipboardList, color: 'text-cyan-400', action: () => onNavigate('rfq-form') },
+        { id: 'funding', label: 'Funding', icon: Banknote, color: 'text-emerald-400', action: () => onNavigate('funding-request') },
+        { id: 'suppliers', label: 'Suppliers', icon: ShoppingCart, color: 'text-orange-400', action: () => onNavigate('suppliers') },
+        { id: 'vault', label: 'Vault', icon: ShieldCheck, color: 'text-purple-400', action: () => onNavigate('vault') },
+        { id: 'calculator', label: 'Calculator', icon: Calculator, color: 'text-blue-400', action: () => onNavigate('calculator') },
+        { id: 'profile', label: 'Profile', icon: UserCircle, color: 'text-pink-400', action: () => onNavigate('profile-edit') },
+        { id: 'upgrade', label: 'Pro', icon: Sparkles, color: 'text-amber-400', action: () => onNavigate('subscription') },
+    ];
+
     return (
-        <div className="space-y-8">
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-                <div>
-                    <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white">Welcome, {user.name}</h2>
-                    <p className="text-gray-500 dark:text-gray-400 mt-1">Manage your business funding and supply chain from one secure dashboard.</p>
+        <div className="w-full pb-10 animate-fade-in-up">
+            
+            {/* HERO BANNER */}
+            <div className="relative w-full rounded-3xl overflow-hidden mb-6 bg-gradient-to-r from-[#005c6e] to-[#0b0c10] border border-cyan-900/30 shadow-[0_10px_40px_rgba(6,182,212,0.15)] group">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-500/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-cyan-400/30 transition-all duration-700"></div>
+                <div className="relative z-10 p-8 sm:p-10 flex flex-col justify-end min-h-[220px]">
+                    <h1 className="text-4xl sm:text-5xl font-black text-white leading-[1.1] tracking-tight max-w-[280px] sm:max-w-md drop-shadow-md">
+                        ProcFin is<br />the plug<br />for business
+                    </h1>
                 </div>
-                {user.subscribed && (
-                    <div className="flex gap-3">
-                        {user.subscription?.tier === 'free' && rfqs.length >= 2 ? (
-                            <button
-                                onClick={() => onNavigate('subscription')}
-                                className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-black text-sm shadow-lg shadow-indigo-500/20 transition-all hover:bg-indigo-700 active:scale-95"
-                            >
-                                💎 Upgrade for more RFQs
-                            </button>
-                        ) : (
-                            <button onClick={() => onNavigate('rfq-form')} className="px-5 py-2.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 rounded-xl font-bold text-sm hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">Request Quote</button>
-                        )}
-                        <button onClick={() => onNavigate('funding-request')} className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm shadow-lg shadow-blue-500/20 transition-all">Apply for Funding</button>
-                    </div>
-                )}
             </div>
 
-            {renderSuggestiveActions()}
+            {/* SEARCH BAR */}
+            <div className="relative mb-8">
+                <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
+                    <Search className="h-6 w-6 text-cyan-400" />
+                </div>
+                <input 
+                    type="text" 
+                    placeholder="How can we help you?"
+                    className="block w-full pl-14 pr-4 py-4 sm:py-5 bg-[#121318] border border-gray-800 rounded-2xl text-white placeholder-gray-500 font-bold text-lg focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 shadow-inner transition-all"
+                />
+            </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Profile Info Card */}
-                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-3xl p-8 shadow-sm">
-                    <div className="flex items-center gap-4 mb-8">
-                        <div className="w-14 h-14 rounded-2xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-2xl">🏢</div>
-                        <div>
-                            <h3 className="text-xl font-bold text-gray-900 dark:text-white capitalize">{user.name}</h3>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-bold tracking-widest mt-1">SME Representative</p>
+            {/* QUICK ACTIONS GRID */}
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:flex md:flex-wrap gap-3 sm:gap-4 mb-12">
+                {gridItems.map((item, i) => {
+                    const Icon = item.icon;
+                    return (
+                        <div 
+                            key={i} 
+                            onClick={item.action}
+                            className="bg-[#121318] border border-gray-800 rounded-3xl p-5 sm:p-6 flex flex-col items-center justify-center gap-4 cursor-pointer hover:bg-[#1a1c23] hover:border-gray-700 transition-all shadow-sm active:scale-95 group md:w-[120px]"
+                        >
+                            <Icon strokeWidth={1.5} size={36} className={`${item.color} group-hover:scale-110 transition-transform duration-300`} />
+                            <span className="text-gray-300 font-medium text-[11px] sm:text-xs tracking-wide">{item.label}</span>
                         </div>
+                    );
+                })}
+            </div>
+
+            {/* DESKTOP DATA EXPANSION (Also visible on mobile by scrolling) */}
+            <div className="space-y-6">
+                {/* SME Analytics Top Bar */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-2">
+                    <div className="bg-[#121318] border border-gray-800/80 rounded-3xl p-6 shadow-sm relative overflow-hidden group">
+                        <div className="absolute -right-4 -top-4 w-24 h-24 bg-cyan-500/10 rounded-full blur-2xl group-hover:bg-cyan-500/20 transition-all duration-700"></div>
+                        <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1 relative z-10">Total Tenders Posted</p>
+                        <p className="text-4xl font-black text-white font-mono relative z-10">{rfqs.length}</p>
                     </div>
-
-                    <div className="space-y-4 border-t border-gray-100 dark:border-gray-700/50 pt-6">
-                        <div className="flex justify-between items-center text-sm">
-                            <span className="text-gray-500 dark:text-gray-400">Account Status</span>
-                            <span className="font-bold text-emerald-600 dark:text-emerald-400">Verified SME</span>
-                        </div>
-                        <div className="flex justify-between items-start text-sm">
-                            <span className="text-gray-500 dark:text-gray-400">Categories</span>
-                            <span className="font-medium text-gray-900 dark:text-white text-right max-w-[60%]">
-                                {Array.isArray(user.industry) ? user.industry.join(', ') : (user.industry || 'None')}
-                            </span>
-                        </div>
-                        <div className="flex justify-between items-center text-sm">
-                            <span className="text-gray-500 dark:text-gray-400">Official Email</span>
-                            <span className="font-medium text-gray-900 dark:text-white">{user.email}</span>
-                        </div>
-                        <div className="flex justify-between items-center text-sm">
-                            <span className="text-gray-500 dark:text-gray-400">Subscription Tier</span>
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest ${user.subscription?.tier === 'pro' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'bg-gray-100 dark:bg-gray-700 text-gray-500'}`}>
-                                {user.subscription?.tier || 'Free'}
-                            </span>
-                        </div>
-                        <div className="flex justify-between items-center text-sm">
-                            <span className="text-gray-500 dark:text-gray-400">ProcFin ID</span>
-                            <span className="font-mono text-xs bg-gray-50 dark:bg-gray-900 px-2 py-1 rounded text-blue-600 dark:text-blue-400">PR-{user.id?.substring(0, 8).toUpperCase() || 'NEW'}</span>
-                        </div>
+                    <div className="bg-[#121318] border border-gray-800/80 rounded-3xl p-6 shadow-sm relative overflow-hidden group">
+                        <div className="absolute -right-4 -top-4 w-24 h-24 bg-amber-500/10 rounded-full blur-2xl group-hover:bg-amber-500/20 transition-all duration-700"></div>
+                        <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1 relative z-10">Total Quotes Received</p>
+                        <p className="text-4xl font-black text-amber-400 font-mono relative z-10">
+                            {rfqs.reduce((acc, r) => acc + (r.quotes?.length || 0), 0)}
+                        </p>
                     </div>
-
-                    <div className="grid grid-cols-2 gap-4 mt-10">
-                        <button onClick={() => onNavigate('profile-edit')} className="py-3 text-sm font-bold border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-white rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">Edit Profile</button>
-                        <button onClick={() => onNavigate('vault')} className="py-3 text-sm font-bold bg-gray-900 dark:bg-blue-600 text-white rounded-xl hover:bg-gray-800 dark:hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/10">My Vault</button>
+                    <div className="bg-[#121318] border border-gray-800/80 rounded-3xl p-6 shadow-sm relative overflow-hidden group">
+                        <div className="absolute -right-4 -top-4 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/20 transition-all duration-700"></div>
+                        <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1 relative z-10">Value in Funding</p>
+                        <p className="text-4xl font-black text-emerald-400 font-mono relative z-10">
+                            R{deals.reduce((acc, d) => acc + Number(d.amount || 0), 0).toLocaleString()}
+                        </p>
                     </div>
                 </div>
 
-                {/* RFQ / Funding List */}
-                <div className="lg:col-span-2 space-y-6">
-                    {user.subscription?.tier !== 'pro' ? (
-                        <div className="bg-gradient-to-br from-indigo-600 to-blue-700 rounded-3xl p-10 text-white relative overflow-hidden shadow-2xl shadow-indigo-600/20">
-                            <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
-                            <div className="relative z-10 max-w-md">
-                                <h2 className="text-xs font-black uppercase tracking-[0.2em] mb-4 text-white/60">Expansion Opportunity</h2>
-                                <h3 className="text-3xl font-black mb-4 italic">SME Pro: Scale Your Operations</h3>
-                                <p className="text-white/80 mb-8 leading-relaxed font-medium">
-                                    Subscribe for **R499/mo** for unlimited RFQs, priority supplier matching, and dedicated funding support.
-                                </p>
-                                <button onClick={() => onNavigate('subscription')} className="px-8 py-4 bg-white text-indigo-600 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-gray-50 transition-all shadow-xl active:scale-95">
-                                    Upgrade to Pro &rarr;
-                                </button>
-                            </div>
+                <div className="flex items-center justify-between px-2">
+                    <h3 className="text-xl font-bold text-white tracking-tight">Activity</h3>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* RFQS */}
+                    <div className="bg-[#121318] border border-gray-800 rounded-3xl p-6 sm:p-8">
+                        <div className="flex items-center gap-3 mb-6">
+                            <ClipboardList className="text-cyan-400" size={24} />
+                            <h4 className="text-lg font-bold text-white">Tenders (RFQs)</h4>
                         </div>
-                    ) : (
-                        <>
-                            {/* Active RFQs */}
-                            <div className="bg-white dark:bg-gray-800/60 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-3xl p-8">
-                                <div className="flex justify-between items-center mb-8">
-                                    <div>
-                                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">Active Quotation Requests (RFQs)</h3>
-                                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                                            {tier === 'free' ? `${rfqs.length}/2 RFQs used in Free Tier` : 'Unlimited Pro RFQs active'}
-                                        </p>
+                        <div className="space-y-4">
+                            {rfqs.length > 0 ? rfqs.map((rfq, i) => (
+                                <div key={i} className="bg-[#1a1c23] border border-gray-800 rounded-2xl p-5 flex justify-between items-center cursor-pointer hover:border-cyan-900 transition-all" onClick={() => setReviewingRfq(rfq)}>
+                                    <div className="overflow-hidden flex-1 pr-4">
+                                        <p className="font-bold text-white truncate text-sm">{rfq.title}</p>
+                                        <p className="text-[10px] text-gray-500 uppercase tracking-widest mt-1">{rfq.category}</p>
                                     </div>
-                                    <span className={`px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full border ${tier === 'pro'
-                                        ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 border-indigo-100 dark:border-indigo-800'
-                                        : 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-800'}`}>
-                                        SME {tier === 'pro' ? 'Pro' : 'Starter'} Active
-                                    </span>
+                                    <div className="flex flex-col items-end">
+                                        <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md ${rfq.status === 'Closed (Quote Accepted)' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-cyan-500/10 text-cyan-400'}`}>{rfq.status}</span>
+                                        <span className="text-xs text-gray-400 mt-2 font-bold">{rfq.quotes?.length || 0} Quotes</span>
+                                    </div>
                                 </div>
+                            )) : (
+                                <p className="text-sm text-gray-500 italic px-2">No active tenders.</p>
+                            )}
+                        </div>
+                    </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {rfqs.length > 0 ? rfqs.map((rfq, i) => {
-                                        const quoteCount = rfq.quotes?.length || 0;
-                                        const hasNewQuotes = quoteCount > 0 && rfq.status !== 'Closed (Quote Accepted)';
-                                        const isClosed = rfq.status === 'Closed (Quote Accepted)';
-
-                                        return (
-                                            <div key={i} className={`border-2 rounded-2xl p-5 transition-all hover:shadow-md ${hasNewQuotes
-                                                ? 'border-blue-200 dark:border-blue-800 bg-blue-50/30 dark:bg-blue-900/10'
-                                                : isClosed
-                                                    ? 'border-emerald-100 dark:border-emerald-900/30 bg-emerald-50/20 dark:bg-emerald-900/5'
-                                                    : 'border-gray-100 dark:border-gray-700'
-                                                }`}>
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <h4 className="font-bold text-gray-900 dark:text-white pr-2">{rfq.title}</h4>
-                                                    <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded whitespace-nowrap flex-shrink-0 ${isClosed
-                                                        ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400'
-                                                        : 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
-                                                        }`}>{rfq.status}</span>
-                                                </div>
-                                                <p className="text-xs text-gray-500 mb-4 truncate">{rfq.specs}</p>
-
-                                                {/* Quote count indicator */}
-                                                {quoteCount > 0 && (
-                                                    <div className="flex items-center gap-2 mb-4">
-                                                        <div className="flex -space-x-1">
-                                                            {Array.from({ length: Math.min(quoteCount, 3) }).map((_, i) => (
-                                                                <div key={i} className="w-5 h-5 rounded-full bg-blue-500 border-2 border-white dark:border-gray-800 flex items-center justify-center text-[8px] text-white font-black">🏭</div>
-                                                            ))}
-                                                        </div>
-                                                        <span className="text-xs font-bold text-blue-600 dark:text-blue-400">
-                                                            {quoteCount} supplier quote{quoteCount !== 1 ? 's' : ''} received
-                                                        </span>
-                                                        {hasNewQuotes && (
-                                                            <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                                                        )}
-                                                    </div>
-                                                )}
-
-                                                <button
-                                                    onClick={() => setReviewingRfq(rfq)}
-                                                    className={`w-full py-2.5 rounded-xl text-xs font-black transition-all ${hasNewQuotes
-                                                        ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20'
-                                                        : isClosed
-                                                            ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/30'
-                                                            : 'bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-white border border-gray-100 dark:border-gray-600'
-                                                        }`}>
-                                                    {isClosed
-                                                        ? '✓ View Accepted Quote'
-                                                        : quoteCount > 0
-                                                            ? `Review ${quoteCount} Quote${quoteCount !== 1 ? 's' : ''} →`
-                                                            : 'Awaiting Quotes...'}
-                                                </button>
-                                            </div>
-                                        );
-                                    }) : (
-                                        <div className="col-span-2 py-12 text-center">
-                                            <div className="text-4xl mb-4 opacity-20">📦</div>
-                                            <p className="text-gray-400 text-sm italic">You have no active quotation requests.</p>
-                                            <button onClick={() => onNavigate('rfq-form')} className="mt-4 text-blue-600 dark:text-blue-400 text-sm font-bold hover:underline">
-                                                Create your first RFQ
-                                            </button>
-                                        </div>
-                                    )}
+                    {/* FUNDING DEALS */}
+                    <div className="bg-[#121318] border border-gray-800 rounded-3xl p-6 sm:p-8">
+                        <div className="flex items-center gap-3 mb-6">
+                            <Banknote className="text-emerald-400" size={24} />
+                            <h4 className="text-lg font-bold text-white">Funding Deals</h4>
+                        </div>
+                        <div className="space-y-4">
+                            {deals.length > 0 ? deals.map((deal, i) => (
+                                <div key={i} className="bg-[#1a1c23] border border-gray-800 rounded-2xl p-5 flex justify-between items-center cursor-pointer hover:border-emerald-900 transition-all" onClick={() => onNavigate('funding-details', { dealId: deal.id })}>
+                                    <div className="overflow-hidden flex-1 pr-4">
+                                        <p className="font-bold text-emerald-400 truncate text-lg">R{Number(deal.amount || 0).toLocaleString()}</p>
+                                        <p className="text-[10px] text-gray-500 uppercase tracking-widest mt-1">{deal.category}</p>
+                                    </div>
+                                    <div className="flex flex-col items-end">
+                                        <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md bg-emerald-500/10 text-emerald-400`}>{deal.status}</span>
+                                        <ChevronRight size={16} className="text-gray-500 mt-2" />
+                                    </div>
                                 </div>
-                            </div>
-
-                            {/* Funding Deals Section */}
-                            <div className="bg-white dark:bg-gray-800/60 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-3xl p-8">
-                                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Tender Funding Status</h3>
-                                <p className="text-sm text-gray-500 dark:text-gray-400 mb-8">Track your funding applications and capital deployment.</p>
-
-                                <div className="space-y-4">
-                                    {deals.length > 0 ? deals.map(deal => (
-                                        <div key={deal.id} className="bg-gray-50 dark:bg-gray-900/40 p-5 rounded-2xl border border-gray-100 dark:border-gray-700 flex justify-between items-center transition-all hover:border-blue-500/30">
-                                            <div>
-                                                <h4 className="font-bold text-gray-900 dark:text-white">R{Number(deal.amount || 0).toLocaleString()} Funding Request</h4>
-                                                <p className="text-xs text-gray-400 uppercase font-black tracking-widest mt-1">{deal.category}</p>
-                                            </div>
-                                            <div className="flex items-center gap-4">
-                                                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${deal.status === 'Capital Secured' || deal.status === 'Delivery Confirmed'
-                                                    ? 'bg-emerald-50 text-emerald-600 border border-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-900'
-                                                    : deal.status === 'Waybill Uploaded'
-                                                        ? 'bg-blue-50 text-blue-600 border border-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-900'
-                                                        : deal.status === 'Bidding Open'
-                                                            ? 'bg-purple-50 text-purple-600 border border-purple-100 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-900'
-                                                            : 'bg-amber-50 text-amber-600 border border-amber-100 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-900'
-                                                    }`}>
-                                                    {deal.status === 'Bidding Open' && deal.bids?.length > 0 ? `Bids Received (${deal.bids.length})` : deal.status}
-                                                </span>
-                                                <button
-                                                    onClick={() => onNavigate('funding-details', { dealId: deal.id })}
-                                                    className="w-8 h-8 flex items-center justify-center rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-500 hover:text-gray-900 dark:hover:text-white hover:border-blue-400 transition-all text-sm font-bold"
-                                                >
-                                                    →
-                                                </button>
-                                            </div>
-                                        </div>
-                                    )) : (
-                                        <div className="py-10 text-center border-2 border-dashed border-gray-100 dark:border-gray-700 rounded-3xl">
-                                            <p className="text-gray-400 text-sm">No active funding deals found.</p>
-                                            <button onClick={() => onNavigate('funding-request')} className="mt-3 text-blue-600 dark:text-blue-400 text-sm font-bold hover:underline">Apply for funding →</button>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </>
-                    )}
+                            )) : (
+                                <p className="text-sm text-gray-500 italic px-2">No active funding deals.</p>
+                            )}
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            {/* Quote Review Drawer */}
+            {/* Keep existing modals */}
             {renderQuoteDrawer()}
 
             {/* Accept Quote Confirmation Modal */}
             {showAcceptModal && acceptingQuote && (
-                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[60] px-6">
-                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-3xl p-8 max-w-md w-full shadow-2xl">
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-[60] px-6">
+                    <div className="bg-[#121318] border border-gray-800 rounded-3xl p-8 max-w-md w-full shadow-2xl">
                         <div className="text-4xl text-center mb-4">🤝</div>
-                        <h3 className="text-xl font-black text-gray-900 dark:text-white mb-2 text-center">Accept This Quote?</h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 text-center mb-6 leading-relaxed">
+                        <h3 className="text-xl font-black text-white mb-2 text-center">Accept This Quote?</h3>
+                        <p className="text-sm text-gray-400 text-center mb-6 leading-relaxed">
                             You are accepting{' '}
-                            <strong className="text-gray-900 dark:text-white">{acceptingQuote.name}</strong>'s
+                            <strong className="text-white">{acceptingQuote.name}</strong>'s
                             quote of{' '}
-                            <strong className="text-blue-600 dark:text-blue-400 font-mono">R{Number(acceptingQuote.amount).toLocaleString()}</strong>.
-                            <br /><br />
-                            This will <strong>close the RFQ</strong> and notify all suppliers of the outcome.
+                            <strong className="text-cyan-400 font-mono">R{Number(acceptingQuote.amount).toLocaleString()}</strong>.
                         </p>
                         <div className="flex gap-3">
                             <button
                                 onClick={() => { setShowAcceptModal(false); setAcceptingQuote(null); }}
-                                className="flex-1 py-3 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 rounded-xl font-bold text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                                className="flex-1 py-3 border border-gray-800 text-gray-400 rounded-xl font-bold text-sm hover:bg-gray-800 transition-colors"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={handleAcceptQuote}
                                 disabled={acceptingQuote?.accepting}
-                                className="flex-[2] py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-sm shadow-lg shadow-emerald-500/20 transition-all disabled:opacity-50"
+                                className="flex-[2] py-3 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl font-black text-sm shadow-lg shadow-cyan-500/20 transition-all disabled:opacity-50"
                             >
-                                {acceptingQuote?.accepting ? 'Accepting...' : '✓ Accept & Close RFQ'}
+                                {acceptingQuote?.accepting ? 'Accepting...' : '✓ Accept & Close'}
                             </button>
                         </div>
                     </div>

@@ -1,22 +1,38 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
-import { getAuth } from "firebase/auth";
+import { initializeFirestore } from "firebase/firestore";
+import { getAuth, browserLocalPersistence } from "firebase/auth";
 import { getStorage } from "firebase/storage";
 import { getFunctions } from "firebase/functions";
+import { getMessaging } from "firebase/messaging";
 
 const firebaseConfig = {
-    apiKey: "AIzaSyCmoiuwbDodIELIj-TptuEYlIJbVSAKkuQ",
-    authDomain: "procfin.firebaseapp.com",
-    projectId: "procfin",
-    storageBucket: "procfin.firebasestorage.app",
-    messagingSenderId: "719005341578",
-    appId: "1:719005341578:web:da45b21b454c52a7671a73",
-    measurementId: "G-KXN6S8DXB9"
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    appId: import.meta.env.VITE_FIREBASE_APP_ID,
+    measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app);
+export const db = initializeFirestore(app, {
+    experimentalForceLongPolling: true
+}, 'procfin');
 export const auth = getAuth(app);
+
 export const storage = getStorage(app);
 export const functions = getFunctions(app);
+
+let messaging = null;
+if (typeof window !== 'undefined') {
+    try {
+        messaging = getMessaging(app);
+    } catch (e) {
+        console.error("Firebase Messaging failed to initialize", e);
+    }
+}
+export { messaging };
+
 export default app;

@@ -37,17 +37,52 @@ export default function Onboarding({ user, onComplete }) {
     const totalSteps = ONBOARDING_STEPS.length;
     const progress = Math.round((step / totalSteps) * 100);
 
-    const handleNext = (e) => {
+    const [isSaving, setIsSaving] = useState(false);
+    const [error, setError] = useState(null);
+
+    const handleNext = async (e) => {
         e.preventDefault();
         if (step < totalSteps) {
             setStep(step + 1);
         } else {
-            onComplete(formData);
+            setIsSaving(true);
+            setError(null);
+            try {
+                await onComplete(formData);
+            } catch (err) {
+                console.error(err);
+                setError(err.message || 'Failed to save onboarding data. Please check your connection.');
+                setIsSaving(false);
+            }
         }
     };
 
     const handleBack = () => {
-        if (step > 1) setStep(step - 1);
+        if (step > 1) {
+            setError(null);
+            setStep(step - 1);
+        }
+    };
+
+    const handleSkip = async () => {
+        setIsSaving(true);
+        setError(null);
+        try {
+            await onComplete({
+                companyName: 'Faceprint Test SME',
+                regNumber: '2026/123456/07',
+                phone: user.phone || '0792360090',
+                industry: 'Construction & Infrastructure',
+                preferredCategories: ['Tendering', 'Supply Chain'],
+                province: 'Gauteng',
+                address: '123 Main Street, Johannesburg',
+                termsAccepted: true
+            });
+        } catch (err) {
+            console.error(err);
+            setError(err.message || 'Failed to save onboarding data.');
+            setIsSaving(false);
+        }
     };
 
     const handleChange = (e) => {
@@ -93,6 +128,12 @@ export default function Onboarding({ user, onComplete }) {
                 {/* Card */}
                 <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-3xl p-8 md:p-10 shadow-xl shadow-gray-200/50 dark:shadow-none animate-fade-in-up">
                     <p className="text-gray-500 dark:text-gray-400 mb-8 text-sm">{ONBOARDING_STEPS[step - 1].subtitle}</p>
+
+                    {error && (
+                        <div className="mb-6 text-sm font-bold text-red-500 bg-red-50 dark:bg-red-900/20 p-4 rounded-xl border border-red-100 dark:border-red-900/50">
+                            {error}
+                        </div>
+                    )}
 
                     <form onSubmit={handleNext} className="space-y-6">
                         {step === 1 && (
@@ -247,12 +288,22 @@ export default function Onboarding({ user, onComplete }) {
                                     &larr; Back
                                 </button>
                             ) : <div></div>}
-                            <button
-                                type="submit"
-                                className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm shadow-lg shadow-blue-500/20 transition-all active:scale-95"
-                            >
-                                {step === totalSteps ? 'Complete Onboarding' : 'Continue'}
-                            </button>
+                            <div className="flex gap-4">
+                                <button
+                                    type="button"
+                                    onClick={handleSkip}
+                                    className="px-4 py-2.5 border border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400 rounded-xl font-bold text-xs hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                                >
+                                    Skip (Dev Mode)
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={isSaving}
+                                    className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm shadow-lg shadow-blue-500/20 transition-all active:scale-95 disabled:opacity-50"
+                                >
+                                    {isSaving ? 'Saving...' : (step === totalSteps ? 'Complete Onboarding' : 'Continue')}
+                                </button>
+                            </div>
                         </div>
                     </form>
                 </div>

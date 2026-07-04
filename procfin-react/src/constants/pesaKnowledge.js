@@ -1,6 +1,6 @@
 export const PESA_KNOWLEDGE = [
     {
-        keywords: ['how', 'works', 'procfin', 'pesa', 'process', 'steps'],
+        keywords: ['how', 'works', 'procfin', 'zandile', 'process', 'steps'],
         question: "How does ProcFin work?",
         answer: "ProcFin is a 3-step platform: 1. Digital Onboarding (upload docs to your vault), 2. RFQ Generation (request quotes from verified suppliers), 3. Capital Deployment (get matched with funders to pay suppliers and fulfill contracts)."
     },
@@ -15,14 +15,24 @@ export const PESA_KNOWLEDGE = [
         answer: "As a Verified Supplier, browse the 'Live RFQ Feed' on your dashboard. Click 'Submit Custom Quote' on any RFQ that matches your business, enter your price and delivery notes, and the SME will be notified instantly."
     },
     {
-        keywords: ['gold', 'supplier', 'verified', 'status'],
-        question: "What is a Gold Supplier?",
-        answer: "Gold Verified status is awarded to suppliers with a proven track record, completed documentation, and an active subscription. Gold suppliers get priority placement in SME matches and a specialized trust badge."
+        keywords: ['catalog', 'warehouse', 'sourcing', 'inventory', 'supplier products'],
+        question: "How does the Sourcing Warehouse Catalog work?",
+        answer: "The Sourcing Warehouse Catalog is a national inventory where verified suppliers list products and pricing. SMEs can browse, compare products side-by-side, add items to their cart, and instantly apply for PO Financing. Suppliers can unlock this premium listing module for R1,499/month."
     },
     {
-        keywords: ['upgrade', 'verified', 'subscription', 'pro', 'benefit'],
-        question: "How do I upgrade to Verified/Pro?",
-        answer: "Click the 'Upgrade' or 'Become Verified' button on your dashboard. For R499/mo, SMEs get unlimited RFQs and priority matching, while Suppliers get the ability to submit unlimited quotes and access the national database."
+        keywords: ['gold', 'silver', 'platinum', 'badge', 'trust', 'status', 'tier'],
+        question: "What are Silver, Gold, and Platinum trust badges?",
+        answer: "We use a 3-tier trust system: 1. Silver (Standard verified partner). 2. Gold Verified (Subscribed to R499 bid board, completed initial vault compliance). 3. Platinum Enterprise (Subscribed to R3,999 Promoted Partner, 100% compliance audit score, rating above 4.5)."
+    },
+    {
+        keywords: ['promoted', 'carousel', '3999', 'benefit', 'featured', 'advertising'],
+        question: "What is the Promoted Supplier Plan?",
+        answer: "For R3,999/month, Promoted Suppliers get maximum visibility: 1. Top sorting priority in Sourcing categories. 2. Active placement in the Featured Product Carousel. 3. Direct qualification for the Platinum Trust Badge. 4. Priority introduction to platform funders."
+    },
+    {
+        keywords: ['upgrade', 'verified', 'subscription', 'pro', 'benefit', 'pricing', 'fees', 'cost'],
+        question: "What are the fees and subscription costs?",
+        answer: "1. SME Pro: R499/month (unlimited RFQs, priority matching). 2. Supplier Bid Board: R499/month (quote on RFQs). 3. Supplier Sourcing Catalog: R1,499/month (list products). 4. Supplier Promoted Partner: R3,999/month (carousel & top category placement). 5. Escrow: 3% flat fee. 6. Funder: 2.5% interest per 30 days."
     },
     {
         keywords: ['register', 'sme', 'supplier', 'signup', 'join'],
@@ -32,20 +42,10 @@ export const PESA_KNOWLEDGE = [
     {
         keywords: ['funding', 'categories', 'industries', 'sectors'],
         question: "What funding categories do you support?",
-        answer: "We support a wide range of industries including Construction, IT, Agriculture, Logistics, Healthcare, Manufacturing, Mining, and Retail."
+        answer: "We support a wide range of industries including Printing, Textiles, Office Supplies, Logistics, Fuel, Construction Materials, Industrial Tools, IT Hardware, Consultancy, and Manufacturing."
     },
     {
-        keywords: ['sme', 'pro', 'starter', 'free', 'tiers', 'subscription', 'price', 'cost'],
-        question: "What is the difference between SME Starter and Pro?",
-        answer: "The Free/Starter tier allows up to 2 RFQs. SME Pro (R499/mo) offers unlimited RFQs, priority supplier matching, and dedicated funding support."
-    },
-    {
-        keywords: ['supplier', 'verified', 'benefits', 'join', 'database'],
-        question: "How do I become a verified supplier?",
-        answer: "Register as a supplier and subscribe (R499/mo) to get instant RFQ notifications, submit unlimited quotes, and receive guaranteed milestone payouts via our secure escrow system."
-    },
-    {
-        keywords: ['vault', 'documents', 'security', 'cipc', 'tax', 'bee'],
+        keywords: ['vault', 'documents', 'security', 'cipc', 'tax', 'bee', 'safe'],
         question: "What is the Digital Vault?",
         answer: "The Digital Vault is an encrypted storage for your CIPC docs, Tax Clearance, and BEE certificates. It allows for instant compliance scoring and audit-readiness 24/7."
     },
@@ -75,7 +75,17 @@ export const PESA_KNOWLEDGE = [
         answer: (ctx) => {
             if (!ctx.deals || ctx.deals.length === 0) return "I couldn't find any active funding deals for your account. You can apply for funding once an RFQ quote is accepted.";
             const secured = ctx.deals.filter(d => d.status === 'Capital Secured').length;
-            return `You have ${ctx.deals.length} active deals. ${secured > 0 ? `${secured} of them have successfully secured capital!` : "They are currently being reviewed by our liquidty partners."}`;
+            return `You have ${ctx.deals.length} active deals. ${secured > 0 ? `${secured} of them have successfully secured capital!` : "They are currently being reviewed by our liquidity partners."}`;
+        }
+    },
+    {
+        keywords: ['compliance', 'status', 'verified', 'verify', 'am i'],
+        question: "What is my compliance status?",
+        answer: (ctx, user) => {
+            if (!user) return "Please log in to check your compliance status.";
+            if (user.promoted) return "You are a Platinum Featured Partner with a 100% compliance score!";
+            if (user.subscribed) return "You are a Gold Verified member with active compliance.";
+            return "You are currently a Standard member. Please ensure your vault documents are uploaded and consider upgrading to Verified status for guaranteed escrow payouts.";
         }
     },
     {
@@ -85,10 +95,9 @@ export const PESA_KNOWLEDGE = [
     }
 ];
 
-export const getPesaResponse = (input, liveContext = {}) => {
+export const getZandileResponse = (input, liveContext = {}, user = null) => {
     const query = input.toLowerCase();
 
-    // Find the best match based on keywords
     let bestMatch = null;
     let maxKeywords = 0;
 
@@ -102,10 +111,10 @@ export const getPesaResponse = (input, liveContext = {}) => {
 
     if (maxKeywords > 0) {
         if (typeof bestMatch.answer === 'function') {
-            return bestMatch.answer(liveContext);
+            return bestMatch.answer(liveContext, user);
         }
         return bestMatch.answer;
     }
 
-    return "I'm not sure I understand that. Try asking about 'my RFQ status', 'funding progress', 'SME Pro', or 'how it works'.";
+    return "I'm not sure I understand that. Try asking about 'compliance status', 'Sourcing Warehouse', 'how it works', or check your 'RFQ status'.";
 };

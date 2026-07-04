@@ -1,0 +1,20 @@
+{
+  "name": "ProcFin - Tender Funding",
+  "short_name": "ProcFin",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#06b6d4",
+  "icons": [
+    {
+      "src": "/splash-logo.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg"
+    },
+    {
+      "src": "/splash-logo.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg"
+    }
+  ]
+}

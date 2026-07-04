@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getPesaResponse, PESA_KNOWLEDGE } from '../constants/pesaKnowledge';
+import { getZandileResponse } from '../constants/pesaKnowledge';
+import { Sparkles, X, RefreshCw, Send, MessageCircle } from 'lucide-react';
 
 export default function PesaChatbot({ user, liveContext }) {
-    const role = user?.role || 'GUEST';
+    const role = user?.role || user?.type || 'GUEST';
     const [isOpen, setIsOpen] = useState(false);
 
     const getInitialGreeting = () => {
-        if (role === 'SME') return `Sawubona! I'm Pesa. How can I help with your business funding or RFQs today?`;
-        if (role === 'SUPPLIER') return `Sawubona! I'm Pesa. Need help with your quotes or escrow payouts?`;
-        return `Sawubona! I'm Pesa, your ProcFin assistant. How can I help you today?`;
+        const namePart = user?.name ? ` ${user.name.split(' ')[0]}` : '';
+        if (role === 'SME') return `Sawubona${namePart}! I'm Zandile. How can I help with your purchase order funding, RFQs, or sourcing products today?`;
+        if (role === 'SUPPLIER') return `Sawubona${namePart}! I'm Zandile. Need help uploading your catalog products or tracking escrow payouts?`;
+        return `Sawubona${namePart}! I'm Zandile, your ProcFin digital advisor. How can I help you today?`;
     };
 
     const [messages, setMessages] = useState([
@@ -32,9 +34,8 @@ export default function PesaChatbot({ user, liveContext }) {
         setInput('');
         setIsTyping(true);
 
-        // Simulate typing delay
         setTimeout(() => {
-            const response = getPesaResponse(text, liveContext);
+            const response = getZandileResponse(text, liveContext, user);
             setMessages([...newMessages, { role: 'assistant', text: response }]);
             setIsTyping(false);
         }, 800);
@@ -48,20 +49,26 @@ export default function PesaChatbot({ user, liveContext }) {
 
     const getQuickQuestions = () => {
         if (role === 'SME') return [
-            "How do I create an RFQ?",
-            "What is SME Pro?",
-            "How does funding work?",
-            "Tell me about the Vault"
+            "How do I secure funding?",
+            "How does the Sourcing Warehouse work?",
+            "What funding categories do you support?",
+            "What are the fees for PO financing?",
+            "Is my document vault safe?",
+            "How are payments guaranteed?"
         ];
         if (role === 'SUPPLIER') return [
             "How do I submit a quote?",
-            "What is a Gold Supplier?",
+            "How does the Sourcing Catalog work?",
             "How does escrow work?",
-            "Upgrade to Verified"
+            "What are the fees?",
+            "Tell me about the Digital Vault",
+            "How do I become a verified supplier?"
         ];
         return [
             "How does it work?",
-            "What are the categories?",
+            "What funding categories do you support?",
+            "What are the fees?",
+            "How are payments guaranteed?",
             "Register as SME",
             "Register as Supplier"
         ];
@@ -73,38 +80,50 @@ export default function PesaChatbot({ user, liveContext }) {
         <div className="fixed bottom-6 right-6 z-[100] font-sans">
             {/* Chat Window */}
             {isOpen && (
-                <div className="absolute bottom-20 right-0 w-[90vw] md:w-[400px] h-[500px] bg-white dark:bg-gray-900 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-800 flex flex-col overflow-hidden animate-fade-in-up">
+                <div className="absolute bottom-20 right-0 w-[90vw] md:w-[400px] h-[520px] bg-[#121318] rounded-3xl shadow-2xl border border-gray-800 flex flex-col overflow-hidden animate-fade-in-up text-white">
                     {/* Header */}
-                    <div className="bg-blue-600 p-6 text-white flex justify-between items-center shrink-0">
+                    <div className="bg-gradient-to-r from-cyan-600 to-blue-700 p-5 flex justify-between items-center shrink-0 border-b border-gray-850">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center text-xl">💸</div>
+                            <img 
+                                src="/zandile_avatar.png" 
+                                className="w-11 h-11 rounded-2xl object-cover border border-white/20 shadow-md" 
+                                alt="Zandile" 
+                                onError={(e) => {
+                                    e.target.onerror = null;
+                                    e.target.src = "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=100&auto=format&fit=crop&q=60";
+                                }}
+                            />
                             <div>
-                                <h3 className="font-bold">Pesa</h3>
-                                <p className="text-[10px] uppercase font-black tracking-widest opacity-70">Platform Assistant</p>
+                                <h3 className="font-extrabold text-sm flex items-center gap-1.5">
+                                    Zandile <Sparkles size={12} className="text-yellow-300 animate-pulse" />
+                                </h3>
+                                <p className="text-[10px] uppercase font-black tracking-widest text-cyan-200">ProcFin Advisor</p>
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={handleReset}
-                                className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors flex items-center gap-1.5"
+                                className="p-2 hover:bg-white/10 rounded-xl text-gray-300 hover:text-white transition-colors"
                                 title="Reset Conversation"
                             >
-                                <span>🔄</span> Start Again
+                                <RefreshCw size={14} />
                             </button>
                             <button
                                 onClick={() => setIsOpen(false)}
-                                className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 transition-colors"
-                            >×</button>
+                                className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 transition-colors text-white"
+                            >
+                                <X size={16} />
+                            </button>
                         </div>
                     </div>
 
                     {/* Messages */}
-                    <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-4">
+                    <div ref={scrollRef} className="flex-1 overflow-y-auto p-5 space-y-4 bg-[#0b0c10]">
                         {messages.map((m, i) => (
                             <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                <div className={`max-w-[85%] p-4 rounded-2xl text-sm leading-relaxed ${m.role === 'user'
-                                    ? 'bg-blue-600 text-white rounded-tr-none'
-                                    : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-tl-none'
+                                <div className={`max-w-[85%] p-4 rounded-2xl text-xs leading-relaxed ${m.role === 'user'
+                                    ? 'bg-cyan-500 text-white rounded-tr-none'
+                                    : 'bg-[#161820] text-gray-200 border border-gray-800/65 rounded-tl-none'
                                     } shadow-sm`}>
                                     {m.text}
                                 </div>
@@ -112,32 +131,35 @@ export default function PesaChatbot({ user, liveContext }) {
                         ))}
                         {isTyping && (
                             <div className="flex justify-start">
-                                <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-2xl rounded-tl-none flex gap-1 items-center">
-                                    <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></div>
-                                    <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:0.2s]"></div>
-                                    <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:0.4s]"></div>
+                                <div className="bg-[#161820] border border-gray-800/65 p-4 rounded-2xl rounded-tl-none flex gap-1 items-center">
+                                    <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce"></div>
+                                    <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce [animation-delay:0.2s]"></div>
+                                    <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce [animation-delay:0.4s]"></div>
                                 </div>
                             </div>
                         )}
 
                         {/* Quick Questions Labels */}
                         {messages.length === 1 && (
-                            <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">
-                                {quickQuestions.map(q => (
-                                    <button
-                                        key={q}
-                                        onClick={() => handleSend(q)}
-                                        className="text-xs px-3 py-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-bold rounded-lg border border-blue-100 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
-                                    >
-                                        {q}
-                                    </button>
-                                ))}
+                            <div className="flex flex-col gap-2 mt-4 pt-4 border-t border-gray-800/50">
+                                <p className="text-[9px] uppercase font-black text-gray-500 tracking-wider mb-1">Suggested Discussion Topics</p>
+                                <div className="flex flex-wrap gap-2">
+                                    {quickQuestions.map(q => (
+                                        <button
+                                            key={q}
+                                            onClick={() => handleSend(q)}
+                                            className="text-[11px] text-left px-3.5 py-2 bg-gray-800/50 hover:bg-gray-800 text-cyan-400 hover:text-white font-bold rounded-xl border border-gray-800 transition-colors"
+                                        >
+                                            {q}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
                         )}
                     </div>
 
                     {/* Input Area */}
-                    <div className="p-4 border-t border-gray-100 dark:border-gray-800 shrink-0 bg-gray-50 dark:bg-gray-900/50">
+                    <div className="p-4 border-t border-gray-800 shrink-0 bg-[#121318]">
                         <form
                             onSubmit={(e) => { e.preventDefault(); handleSend(); }}
                             className="flex gap-2"
@@ -146,33 +168,42 @@ export default function PesaChatbot({ user, liveContext }) {
                                 type="text"
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
-                                placeholder="Ask Pesa about the platform..."
-                                className="flex-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white"
+                                placeholder="Ask Zandile about ProcFin..."
+                                className="flex-1 bg-[#1a1c23] border border-gray-800 rounded-xl px-4 py-2.5 text-xs outline-none focus:ring-1 focus:ring-cyan-500 text-white placeholder-gray-500"
                             />
                             <button
                                 type="submit"
                                 disabled={!input.trim()}
-                                className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/30 disabled:opacity-50 transition-all active:scale-95"
+                                className="w-10 h-10 bg-cyan-500 hover:bg-cyan-600 disabled:bg-gray-800 text-white rounded-xl flex items-center justify-center shadow-lg disabled:opacity-50 transition-all active:scale-95 shrink-0"
                             >
-                                🚀
+                                <Send size={14} />
                             </button>
                         </form>
                     </div>
                 </div>
             )}
 
-            {/* Bubble Toggle */}
+            {/* Bubble Toggle Button */}
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shadow-2xl transition-all active:scale-90 relative overflow-hidden group ${isOpen
-                    ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'
-                    : 'bg-blue-600 text-white animate-pulse'
+                className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-2xl transition-all active:scale-90 relative overflow-hidden group ${isOpen
+                    ? 'bg-gray-900 border border-gray-800 text-white'
+                    : 'bg-cyan-500 text-white shadow-cyan-500/20'
                     }`}
             >
-                {isOpen ? '×' : (
+                {isOpen ? <X size={20} /> : (
                     <>
-                        <span>💸</span>
-                        <div className="absolute inset-0 bg-white/20 -translate-x-full group-hover:translate-x-full transition-transform duration-500 skew-x-12"></div>
+                        <img 
+                            src="/zandile_avatar.png" 
+                            className="w-full h-full object-cover rounded-2xl" 
+                            alt="Zandile Avatar Toggle"
+                            onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.src = "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=100&auto=format&fit=crop&q=60";
+                            }}
+                        />
+                        <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 border-2 border-[#0b0c10] rounded-full"></span>
+                        <div className="absolute inset-0 bg-white/20 -translate-x-full group-hover:translate-x-full transition-transform duration-700 skew-x-12"></div>
                     </>
                 )}
             </button>

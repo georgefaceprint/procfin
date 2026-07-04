@@ -1,27 +1,107 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { db, storage } from '../firebase';
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { CATEGORIES } from '../constants/categories';
 import { useToast } from './Toast';
+import { doc, getDoc } from 'firebase/firestore';
 
-export default function RfqForm({ user, rfqCount, onBack }) {
-    const tier = user.subscription?.tier || 'free';
-    const isLimitReached = tier === 'free' && rfqCount >= 2;
+import { Sparkles, Search, Building2, Calendar, Clock, ArrowRight } from 'lucide-react';
+
+export default function RfqForm({ user, rfqCount, onBack, onNavigate }) {
+    const planName = user.plan || 'Free';
+    const [paywalls, setPaywalls] = useState({ smeFreeRfqLimit: 3, smeProRfqLimit: 10 });
     const [loading, setLoading] = useState(false);
     const toast = useToast();
+
+    // Tab state: 'gov' (Gov Tenders) or 'local' (Request Quote)
+    const [tab, setTab] = useState('gov');
+    const [tenders, setTenders] = useState([]);
+    const [tenderSearch, setTenderSearch] = useState('');
+    const [loadingTenders, setLoadingTenders] = useState(false);
+    
+    useEffect(() => {
+        const fetchSettings = async () => {
+            try {
+                const snap = await getDoc(doc(db, "settings", "paywalls"));
+                if (snap.exists()) {
+                    setPaywalls({
+                        smeFreeRfqLimit: snap.data().smeFreeRfqLimit || 3,
+                        smeProRfqLimit: snap.data().smeProRfqLimit || 10
+                    });
+                }
+            } catch (e) {}
+        };
+        fetchSettings();
+    }, []);
+
+    // Listen to tenders in Firestore
+    useEffect(() => {
+        setLoadingTenders(true);
+        const q = query(collection(db, 'tenders'), orderBy('endDate', 'asc'));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const list = [];
+            snapshot.forEach(doc => {
+                list.push({ id: doc.id, ...doc.data() });
+            });
+            setTenders(list);
+            setLoadingTenders(false);
+        }, (err) => {
+            console.error("Error reading tenders:", err);
+            setLoadingTenders(false);
+        });
+        return () => unsubscribe();
+    }, []);
+
+    // Sync tenders from OCDS API via Cloud Function
+    const handleSyncTenders = async () => {
+        setLoadingTenders(true);
+        try {
+            const res = await fetch('https://synctenders-yswbgz5kpa-uc.a.run.app');
+            const data = await res.json();
+            if (data.success) {
+                toast.success('Successfully synced latest tenders from National Treasury!');
+            } else {
+                toast.error('Sync completed with issues.');
+            }
+        } catch (e) {
+            console.error("Sync error:", e);
+            toast.error('Failed to contact National Treasury API.');
+        } finally {
+            setLoadingTenders(false);
+        }
+    };
+
+    let currentLimit = paywalls.smeFreeRfqLimit;
+    let tierName = "Free";
+    if (planName === 'SME Pro Plan') {
+        currentLimit = paywalls.smeProRfqLimit;
+        tierName = "Pro";
+    } else if (planName === 'SME Enterprise') {
+        currentLimit = Infinity;
+        tierName = "Enterprise";
+    }
+
+    const isLimitReached = rfqCount >= currentLimit;
+
     const [formData, setFormData] = useState({
         title: '',
         category: '',
         specs: '',
         location: '',
-        file: null
+        file: null,
+        isVip: false
     });
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        
         if (isLimitReached) {
-            toast.error('Free tier limit reached (2 active RFQs). Please upgrade to Pro for unlimited requests.');
+            if (onNavigate) {
+                onNavigate('subscription');
+            } else {
+                toast.error(`Limit reached (${currentLimit} RFQs). Upgrade your plan.`);
+            }
             return;
         }
         setLoading(true);
@@ -37,15 +117,15 @@ export default function RfqForm({ user, rfqCount, onBack }) {
             await addDoc(collection(db, "rfqs"), {
                 smeId: user.id,
                 smeName: user.name,
-                smeTier: user.subscription?.tier || 'free',
+                smeTier: planName,
                 title: formData.title,
                 category: formData.category,
                 specs: formData.specs,
                 location: formData.location,
                 docUrl: fileUrl,
-                status: 'Requested',
-                quotes: [],
-                createdAt: new Date().toISOString()
+                status: "Bidding Open",
+                isVip: formData.isVip,
+                createdAt: new Date().toISOString(),
             });
 
             toast.success('Quotation request securely broadcasted to verified suppliers!');
@@ -58,72 +138,207 @@ export default function RfqForm({ user, rfqCount, onBack }) {
         }
     };
 
-    return (
-        <div className="max-w-xl mx-auto py-10 animate-fade-in">
-            <button onClick={onBack} className="mb-8 text-sm font-bold text-gray-500 hover:text-gray-900 transition-colors">&larr; Back</button>
-            <h2 className="text-3xl font-black text-gray-900 dark:text-white mb-2">Request a Quotation</h2>
-            <p className="text-gray-500 dark:text-gray-400 mb-8">Broadcast your requirements to verified suppliers in our network.</p>
+    // Filter tenders
+    const filteredTenders = tenders.filter(t => {
+        const q = tenderSearch.toLowerCase();
+        return (
+            t.title.toLowerCase().includes(q) ||
+            t.procuringEntity.toLowerCase().includes(q) ||
+            t.category.toLowerCase().includes(q) ||
+            (t.description || '').toLowerCase().includes(q)
+        );
+    });
 
-            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-3xl p-8 shadow-xl">
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    <div>
-                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">What do you need?</label>
-                        <input
-                            type="text"
-                            required
-                            className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
-                            placeholder="e.g. 50 Dell Laptops, or 20 Tons Cement"
-                            onChange={e => setFormData({ ...formData, title: e.target.value })}
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Supplier Category</label>
-                        <select
-                            required
-                            className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
-                            onChange={e => setFormData({ ...formData, category: e.target.value })}
-                        >
-                            <option value="">Select Category...</option>
-                            {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Detailed Specifications</label>
-                        <textarea
-                            required
-                            rows="4"
-                            className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none resize-none"
-                            placeholder="Mention specific grades, delivery timelines, etc."
-                            onChange={e => setFormData({ ...formData, specs: e.target.value })}
-                        ></textarea>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Delivery Location</label>
-                        <input
-                            type="text"
-                            required
-                            className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
-                            placeholder="City/Province"
-                            onChange={e => setFormData({ ...formData, location: e.target.value })}
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Reference Document (Optional)</label>
-                        <input
-                            type="file"
-                            className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                            onChange={e => setFormData({ ...formData, file: e.target.files[0] })}
-                        />
-                    </div>
-                    <button
-                        type="submit"
-                        disabled={loading || isLimitReached}
-                        className={`w-full py-4 rounded-2xl font-black shadow-xl transition-all active:scale-95 disabled:opacity-50 ${isLimitReached ? 'bg-indigo-600 text-white' : 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'}`}
-                    >
-                        {loading ? 'Broadcasting...' : isLimitReached ? '💎 Upgrade to Pro' : 'Broadcast Request'}
-                    </button>
-                </form>
+    return (
+        <div className="max-w-2xl mx-auto py-10 animate-fade-in px-4">
+            <button onClick={onBack} className="mb-8 text-sm font-bold text-gray-500 hover:text-white transition-colors flex items-center gap-2">
+                ← Back to Dashboard
+            </button>
+
+            <div className="mb-8">
+                <h2 className="text-3xl font-black text-white">Tenders & RFQs</h2>
+                <p className="text-gray-500 mt-2 leading-relaxed text-sm">
+                    Browse active government tender opportunities or broadcast your own request to find local suppliers.
+                </p>
             </div>
+
+            {/* Navigation Tabs */}
+            <div className="flex bg-[#121318] p-1.5 rounded-2xl border border-gray-800/80 mb-8">
+                <button
+                    onClick={() => setTab('gov')}
+                    className={`flex-1 py-3 text-sm font-black rounded-xl transition-all ${tab === 'gov' ? 'bg-cyan-500 text-black shadow-lg shadow-cyan-500/10' : 'text-gray-400 hover:text-white'}`}
+                >
+                    🏛️ Gov Opportunities ({filteredTenders.length})
+                </button>
+                <button
+                    onClick={() => setTab('local')}
+                    className={`flex-1 py-3 text-sm font-black rounded-xl transition-all ${tab === 'local' ? 'bg-cyan-500 text-black shadow-lg shadow-cyan-500/10' : 'text-gray-400 hover:text-white'}`}
+                >
+                    📢 Broadcast RFQ
+                </button>
+            </div>
+
+            {/* Tab 1: Gov Tenders */}
+            {tab === 'gov' && (
+                <div className="space-y-6">
+                    <div className="flex gap-3">
+                        <div className="relative flex-1">
+                            <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" />
+                            <input
+                                type="text"
+                                placeholder="Search by department, category, reference..."
+                                value={tenderSearch}
+                                onChange={e => setTenderSearch(e.target.value)}
+                                className="w-full bg-[#121318]/60 border border-gray-800 rounded-xl pl-10 pr-4 py-3.5 text-sm text-white placeholder-gray-500 outline-none focus:border-cyan-500/50"
+                            />
+                        </div>
+                        <button
+                            onClick={handleSyncTenders}
+                            disabled={loadingTenders}
+                            className="px-5 py-3 bg-[#121318] border border-gray-800 hover:border-cyan-500/30 text-xs font-black rounded-xl text-gray-300 hover:text-white transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
+                        >
+                            🔄 Sync eTenders API
+                        </button>
+                    </div>
+
+                    {loadingTenders && tenders.length === 0 ? (
+                        <div className="py-20 text-center text-gray-500">Connecting to eTenders database...</div>
+                    ) : filteredTenders.length === 0 ? (
+                        <div className="py-16 text-center bg-[#121318] rounded-3xl border border-gray-800">
+                            <div className="text-4xl mb-3">🔍</div>
+                            <p className="text-gray-500 text-sm">No matching government tenders found.</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            <div className="p-4 bg-cyan-950/20 border border-cyan-800/30 rounded-2xl flex gap-3 items-start">
+                                <span className="text-cyan-400">💡</span>
+                                <p className="text-xs text-cyan-300/90 leading-relaxed">
+                                    <strong>Value Added Service:</strong> These are live public sector tender advertisements. Use this section to browse bidding pipelines. The moment you win, you can request <strong>Purchase Order Financing</strong> to cover supplier quotes!
+                                </p>
+                            </div>
+                            
+                            {filteredTenders.map(t => {
+                                const daysLeft = Math.ceil((new Date(t.endDate) - new Date()) / (1000 * 60 * 60 * 24));
+                                return (
+                                    <div key={t.id} className="bg-[#121318] border border-gray-800/80 rounded-3xl p-6 hover:border-gray-700 transition-all flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                                        <div className="space-y-2 flex-1">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <span className="px-2.5 py-0.5 bg-cyan-500/10 text-cyan-400 text-[10px] font-black rounded-full border border-cyan-500/20">{t.category}</span>
+                                                {daysLeft > 0 ? (
+                                                    <span className="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-400 text-[10px] font-bold rounded-full border border-emerald-500/20 flex items-center gap-1">
+                                                        <Clock size={10} /> {daysLeft} days left
+                                                    </span>
+                                                ) : (
+                                                    <span className="px-2.5 py-0.5 bg-red-500/10 text-red-400 text-[10px] font-bold rounded-full border border-red-500/20">Closed</span>
+                                                )}
+                                            </div>
+                                            <h4 className="font-black text-white text-base leading-snug">{t.title}</h4>
+                                            <p className="text-xs text-gray-400 flex items-center gap-1.5"><Building2 size={11} className="text-cyan-500" />{t.procuringEntity}</p>
+                                            
+                                            <div className="flex gap-5 pt-2 text-[10px] text-gray-500 font-bold uppercase tracking-wider">
+                                                <span className="flex items-center gap-1"><Calendar size={11} /> Closing: {new Date(t.endDate).toLocaleDateString()}</span>
+                                                {t.amount > 0 && <span className="text-emerald-400 font-black">Value: R{t.amount.toLocaleString()}</span>}
+                                            </div>
+                                        </div>
+
+                                        <button
+                                            onClick={() => onNavigate('funding-request', {
+                                                clientName: t.procuringEntity,
+                                                category: t.category,
+                                                description: `Tender Bid Preparation: ${t.title}`
+                                            })}
+                                            className="w-full md:w-auto px-5 py-3.5 bg-cyan-500 hover:bg-cyan-600 text-black text-xs font-black rounded-xl shadow-lg shadow-cyan-500/10 flex items-center justify-center gap-1.5 transition-all whitespace-nowrap"
+                                        >
+                                            PO Financing <ArrowRight size={13} />
+                                        </button>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Tab 2: Local RFQ Form */}
+            {tab === 'local' && (
+                <div className="bg-[#121318] border border-gray-800/80 rounded-3xl p-8 shadow-xl">
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                        <div>
+                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">What do you need?</label>
+                            <input
+                                type="text"
+                                required
+                                className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                                placeholder="e.g. 50 Dell Laptops, or 20 Tons Cement"
+                                onChange={e => setFormData({ ...formData, title: e.target.value })}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Supplier Category</label>
+                            <select
+                                required
+                                className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                                onChange={e => setFormData({ ...formData, category: e.target.value })}
+                            >
+                                <option value="">Select Category...</option>
+                                {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Detailed Specifications</label>
+                            <textarea
+                                required
+                                rows="4"
+                                className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+                                placeholder="Mention specific grades, delivery timelines, etc."
+                                onChange={e => setFormData({ ...formData, specs: e.target.value })}
+                            ></textarea>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Delivery Location</label>
+                            <input
+                                type="text"
+                                required
+                                className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                                placeholder="City/Province"
+                                onChange={e => setFormData({ ...formData, location: e.target.value })}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Reference Document (Optional)</label>
+                            <input
+                                type="file"
+                                className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                                onChange={e => setFormData({ ...formData, file: e.target.files[0] })}
+                            />
+                        </div>
+                        
+                        <div className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30 rounded-xl p-4 flex gap-4 items-start cursor-pointer hover:bg-amber-500/20 transition-colors" onClick={() => setFormData({ ...formData, isVip: !formData.isVip })}>
+                            <div className="pt-1">
+                                <input 
+                                    type="checkbox" 
+                                    checked={formData.isVip} 
+                                    onChange={(e) => setFormData({ ...formData, isVip: e.target.checked })}
+                                    className="w-5 h-5 rounded border-amber-500 text-amber-600 focus:ring-amber-500 bg-white"
+                                    onClick={e => e.stopPropagation()}
+                                />
+                            </div>
+                            <div>
+                                <p className="font-bold text-amber-900 dark:text-amber-500 flex items-center gap-1.5"><Sparkles size={16} /> Mark as VIP / Urgent (R299)</p>
+                                <p className="text-xs text-amber-800/80 dark:text-amber-400/80 mt-1">Blasts your RFQ to all suppliers instantly via SMS and pins it to the top of the bid board to guarantee immediate quotes.</p>
+                            </div>
+                        </div>
+
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className={`w-full py-4 rounded-2xl font-black shadow-xl transition-all active:scale-95 disabled:opacity-50 ${isLimitReached ? 'bg-indigo-600 text-white' : (formData.isVip ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-amber-500/30' : 'bg-gray-900 dark:bg-white text-white dark:text-gray-900')}`}
+                        >
+                            {loading ? 'Processing...' : isLimitReached ? `💎 Upgrade Tier (Limit of ${currentLimit} reached)` : (formData.isVip ? 'Pay R299 & Broadcast VIP RFQ' : 'Broadcast Request')}
+                        </button>
+                    </form>
+                </div>
+            )}
         </div>
     );
 }

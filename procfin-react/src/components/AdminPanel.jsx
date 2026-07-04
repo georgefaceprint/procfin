@@ -13,6 +13,7 @@ const ADMIN_MODULES = [
     { id: 'funder_approval', title: 'Funder Verification', desc: 'Approve or reject high-net-worth individuals and corporate funding entities.', icon: '🛡️', color: 'purple' },
     { id: 'subscriptions', title: 'Subscription Manager', desc: 'Manage SME pricing tiers, pro upgrades, and billing status.', icon: '💳', color: 'indigo' },
     { id: 'activity', title: 'System Activity', desc: 'Live feed of platform notifications, deal statuses, and user sign-ups.', icon: '🔔', color: 'red' },
+    { id: 'paywalls', title: 'Paywalls & Upsells', desc: 'Dynamically control SME limits, Supplier free quotas, and pricing logic.', icon: '🚧', color: 'red' },
     { id: 'payments', title: 'Payment Settings', desc: 'Securely manage Yoco API keys and platform subscription pricing.', icon: '💰', color: 'indigo' },
     { id: 'secrets', title: 'API & Secrets', desc: 'Manage backend keys, Firestore limits, and third-party integration secrets.', icon: '🔑', color: 'gray' }
 ];
@@ -65,6 +66,25 @@ export default function AdminPanel({ user, onBack }) {
         } catch (error) {
             console.error("Error toggling subscription:", error);
             toast.error('Failed to update subscription.');
+        }
+    };
+
+    const verifyEFT = async (userId, requestedPlan, requestedFeatured) => {
+        try {
+            await updateDoc(doc(db, "users", userId), {
+                subscribed: true,
+                plan: requestedPlan,
+                featured: requestedFeatured,
+                promoted: requestedFeatured, // backward compatibility
+                pendingEFT: false,
+                popUrl: null,
+                subscribedAt: new Date().toISOString(),
+                paymentMethod: 'EFT'
+            });
+            toast.success('EFT Verified & Subscription Activated!');
+        } catch (error) {
+            console.error("Error verifying EFT:", error);
+            toast.error('Failed to verify EFT.');
         }
     };
 
@@ -307,6 +327,35 @@ export default function AdminPanel({ user, onBack }) {
                     </div>
                 </div>
 
+                {users.filter(u => u.pendingEFT).length > 0 && (
+                    <div className="mb-12 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-900/30 rounded-3xl p-6">
+                        <h3 className="text-xl font-black text-amber-900 dark:text-amber-500 mb-4 flex items-center gap-2">
+                            <span>⏳</span> Pending EFT Verifications
+                        </h3>
+                        <div className="space-y-4">
+                            {users.filter(u => u.pendingEFT).map(u => (
+                                <div key={u.id} className="bg-white dark:bg-gray-800 border border-amber-100 dark:border-gray-700 p-5 rounded-2xl flex flex-col md:flex-row justify-between items-center shadow-sm">
+                                    <div>
+                                        <div className="font-bold text-gray-900 dark:text-white">{u.name || u.email.split('@')[0]}</div>
+                                        <div className="text-sm text-gray-500">{u.email}</div>
+                                        <div className="mt-2 text-xs font-bold text-gray-500 uppercase">
+                                            Requested: <span className="text-amber-600">{u.requestedPlan}</span>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-4 mt-4 md:mt-0">
+                                        <a href={u.popUrl} target="_blank" rel="noreferrer" className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2">
+                                            <span>📄</span> View POP
+                                        </a>
+                                        <button onClick={() => verifyEFT(u.id, u.requestedPlan, u.requestedFeatured)} className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-lg shadow-amber-500/20 transition-all">
+                                            Verify & Activate
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
                 <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-3xl overflow-hidden shadow-xl">
                     <table className="w-full text-left border-collapse">
                         <thead>
@@ -530,6 +579,129 @@ export default function AdminPanel({ user, onBack }) {
                             disabled={saving}
                             className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black text-lg shadow-xl shadow-blue-500/20 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3"
                         >
+                            {saving ? 'Saving System Config...' : 'Save Configuration'}
+                        </button>
+                    </form>
+                </div>
+            </div>
+        );
+    }
+
+    if (currentModule === 'paywalls') {
+        const [paywallSettings, setPaywallSettings] = useState({
+            smeFreeRfqLimit: 3,
+            smeProRfqLimit: 10,
+            supplierFreeQuoteLimit: 7,
+            supplierMaxQuoteValue: 25000,
+            goldQuoteLimit: 25,
+            diamondQuoteLimit: 50,
+            featuredPrice3d: 999,
+            featuredPrice30d: 3999
+        });
+        const [saving, setSaving] = useState(false);
+
+        useEffect(() => {
+            const fetchSettings = async () => {
+                const { getDoc } = await import('firebase/firestore');
+                const docSnap = await getDoc(doc(db, "settings", "paywalls"));
+                if (docSnap.exists()) {
+                    setPaywallSettings(docSnap.data());
+                }
+            };
+            fetchSettings();
+        }, []);
+
+        const saveSettings = async (e) => {
+            e.preventDefault();
+            setSaving(true);
+            try {
+                const { setDoc } = await import('firebase/firestore');
+                await setDoc(doc(db, "settings", "paywalls"), paywallSettings, { merge: true });
+                toast.success('Paywall settings updated securely!');
+            } catch (err) {
+                toast.error('Failed to update paywall settings.');
+            } finally {
+                setSaving(false);
+            }
+        };
+
+        return (
+            <div className="max-w-4xl mx-auto py-10 animate-fade-in px-6">
+                <button onClick={() => setCurrentModule(null)} className="mb-8 text-sm font-bold text-gray-500 hover:text-gray-900 transition-colors">&larr; Back to Control Center</button>
+                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-[2.5rem] p-10 shadow-xl">
+                    <h2 className="text-3xl font-black text-gray-900 dark:text-white mb-2">Paywalls & Upsells</h2>
+                    <p className="text-gray-500 mb-10">Control the exact limits where free users are forced to upgrade to a paid tier.</p>
+
+                    <form onSubmit={saveSettings} className="space-y-6">
+                        <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-900/30 rounded-2xl p-6 mb-6">
+                            <h3 className="font-bold text-blue-900 dark:text-blue-400 mb-4">SME RFQ Limits (Per Month)</h3>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Free RFQ Limit</label>
+                                    <input
+                                        type="number" required
+                                        value={paywallSettings.smeFreeRfqLimit}
+                                        onChange={e => setPaywallSettings({ ...paywallSettings, smeFreeRfqLimit: Number(e.target.value) })}
+                                        className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-mono outline-none focus:ring-2 focus:ring-blue-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Pro RFQ Limit</label>
+                                    <input
+                                        type="number" required
+                                        value={paywallSettings.smeProRfqLimit}
+                                        onChange={e => setPaywallSettings({ ...paywallSettings, smeProRfqLimit: Number(e.target.value) })}
+                                        className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-mono outline-none focus:ring-2 focus:ring-blue-500"
+                                    />
+                                </div>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-2">Enterprise tier is hardcoded to unlimited RFQs.</p>
+                        </div>
+
+                        <div className="bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-900/30 rounded-2xl p-6 mb-6">
+                            <h3 className="font-bold text-emerald-900 dark:text-emerald-400 mb-4">Supplier Quote Limits (Per Month)</h3>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Free Quotes</label>
+                                    <input
+                                        type="number" required
+                                        value={paywallSettings.supplierFreeQuoteLimit}
+                                        onChange={e => setPaywallSettings({ ...paywallSettings, supplierFreeQuoteLimit: Number(e.target.value) })}
+                                        className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-mono outline-none focus:ring-2 focus:ring-emerald-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Gold Quotes</label>
+                                    <input
+                                        type="number" required
+                                        value={paywallSettings.goldQuoteLimit}
+                                        onChange={e => setPaywallSettings({ ...paywallSettings, goldQuoteLimit: Number(e.target.value) })}
+                                        className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-mono outline-none focus:ring-2 focus:ring-emerald-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Diamond Quotes</label>
+                                    <input
+                                        type="number" required
+                                        value={paywallSettings.diamondQuoteLimit}
+                                        onChange={e => setPaywallSettings({ ...paywallSettings, diamondQuoteLimit: Number(e.target.value) })}
+                                        className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-mono outline-none focus:ring-2 focus:ring-emerald-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Max Free Value (ZAR)</label>
+                                    <input
+                                        type="number" required
+                                        value={paywallSettings.supplierMaxQuoteValue}
+                                        onChange={e => setPaywallSettings({ ...paywallSettings, supplierMaxQuoteValue: Number(e.target.value) })}
+                                        className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-mono outline-none focus:ring-2 focus:ring-emerald-500"
+                                    />
+                                </div>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-2">Platinum tier is hardcoded to unlimited quotes.</p>
+                        </div>
+                        
+                        <button type="submit" disabled={saving} className="w-full py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-2xl font-black text-lg shadow-xl hover:opacity-90 transition-all active:scale-95 disabled:opacity-50">
                             {saving ? 'Saving System Config...' : 'Save Configuration'}
                         </button>
                     </form>
