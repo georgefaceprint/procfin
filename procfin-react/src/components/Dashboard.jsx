@@ -34,7 +34,7 @@ export default function Dashboard({ user, onLogout, onNavigate, onUpdateUser }) 
     };
 
     const navItems = [
-        { id: 'home', label: 'Home', icon: Home, route: 'dashboard' },
+        { id: 'home', label: 'Dashboard', icon: Home, route: 'dashboard' },
         { id: 'bank', label: 'Deals', icon: Banknote, route: 'dashboard' },
         { id: 'vault', label: 'Vault', icon: ShieldCheck, route: 'vault' },
         { id: 'profile', label: 'Profile', icon: UserCircle, route: 'profile-edit' },
@@ -46,7 +46,7 @@ export default function Dashboard({ user, onLogout, onNavigate, onUpdateUser }) 
             
             {/* DESKTOP SIDEBAR */}
             <aside className="hidden md:flex flex-col w-72 bg-[#121318] border-r border-gray-800/50 fixed h-full z-50">
-                <div className="p-8 flex items-center gap-4 cursor-pointer" onClick={() => onNavigate('home')}>
+                <div className="p-8 flex items-center gap-4 cursor-pointer" onClick={() => handleNav('home', 'dashboard')}>
                     <div className="w-12 h-12 bg-cyan-500 rounded-2xl flex items-center justify-center font-bold text-2xl text-white shadow-[0_0_20px_rgba(6,182,212,0.4)]">P</div>
                     <span className="text-3xl font-black tracking-tight text-white">ProcFin</span>
                 </div>

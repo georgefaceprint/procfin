@@ -253,23 +253,15 @@ export default function App() {
 
   return (
     <div className="w-full min-h-screen font-sans">
-      {currentView !== 'home' && (
+      {currentView !== 'home' && currentView !== 'dashboard' && currentView !== 'onboarding' && (
         <div className="bg-[#0b0c10]/95 backdrop-blur-md sticky top-0 z-40 border-b border-gray-800/80 px-6 py-3.5 flex items-center justify-between print:hidden">
           <div className="flex items-center gap-3">
             <button
-              onClick={() => navigateTo('home')}
+              onClick={() => navigateTo('dashboard')}
               className="px-3.5 py-1.5 bg-gray-800/80 hover:bg-gray-700 text-gray-300 hover:text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 border border-gray-700/50"
             >
-              ← Home
+              ← Dashboard
             </button>
-            {currentView !== 'dashboard' && currentView !== 'onboarding' && (
-              <button
-                onClick={() => navigateTo('dashboard')}
-                className="px-3.5 py-1.5 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 rounded-lg text-xs font-bold transition-all"
-              >
-                Dashboard
-              </button>
-            )}
           </div>
           <div className="flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
