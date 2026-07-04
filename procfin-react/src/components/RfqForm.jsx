@@ -19,6 +19,9 @@ export default function RfqForm({ user, rfqCount, onBack, onNavigate }) {
     const [tenders, setTenders] = useState([]);
     const [tenderSearch, setTenderSearch] = useState('');
     const [loadingTenders, setLoadingTenders] = useState(false);
+    const [categoryFilter, setCategoryFilter] = useState('');
+    const [dateRange, setDateRange] = useState(30); // days
+    const [showOpenOnly, setShowOpenOnly] = useState(false);
     
     useEffect(() => {
         const fetchSettings = async () => {
@@ -139,15 +142,26 @@ export default function RfqForm({ user, rfqCount, onBack, onNavigate }) {
     };
 
     // Filter tenders
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - dateRange);
+
     const filteredTenders = tenders.filter(t => {
         const q = tenderSearch.toLowerCase();
-        return (
-            t.title.toLowerCase().includes(q) ||
-            t.procuringEntity.toLowerCase().includes(q) ||
-            t.category.toLowerCase().includes(q) ||
+        const matchesSearch = (
+            (t.title || '').toLowerCase().includes(q) ||
+            (t.procuringEntity || '').toLowerCase().includes(q) ||
+            (t.category || '').toLowerCase().includes(q) ||
             (t.description || '').toLowerCase().includes(q)
         );
+        const matchesCategory = !categoryFilter || (t.category || '').toLowerCase().includes(categoryFilter.toLowerCase());
+        const publishedDate = t.startDate ? new Date(t.startDate) : new Date(t.createdAt);
+        const matchesDate = publishedDate >= cutoffDate;
+        const daysLeft = Math.ceil((new Date(t.endDate) - new Date()) / (1000 * 60 * 60 * 24));
+        const matchesStatus = !showOpenOnly || daysLeft > 0;
+        return matchesSearch && matchesCategory && matchesDate && matchesStatus;
     });
+
+    const uniqueCategories = [...new Set(tenders.map(t => t.category).filter(Boolean))].sort();
 
     return (
         <div className="max-w-2xl mx-auto py-10 animate-fade-in px-4">
@@ -180,7 +194,8 @@ export default function RfqForm({ user, rfqCount, onBack, onNavigate }) {
 
             {/* Tab 1: Gov Tenders */}
             {tab === 'gov' && (
-                <div className="space-y-6">
+                <div className="space-y-4">
+                    {/* Search bar + sync */}
                     <div className="flex gap-3">
                         <div className="relative flex-1">
                             <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" />
@@ -197,9 +212,52 @@ export default function RfqForm({ user, rfqCount, onBack, onNavigate }) {
                             disabled={loadingTenders}
                             className="px-5 py-3 bg-[#121318] border border-gray-800 hover:border-cyan-500/30 text-xs font-black rounded-xl text-gray-300 hover:text-white transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
                         >
-                            🔄 Sync eTenders API
+                            {loadingTenders ? '⏳ Syncing...' : '🔄 Sync'}
                         </button>
                     </div>
+
+                    {/* Filter Row */}
+                    <div className="flex flex-wrap gap-2">
+                        <select
+                            value={categoryFilter}
+                            onChange={e => setCategoryFilter(e.target.value)}
+                            className="flex-1 min-w-[160px] bg-[#121318] border border-gray-800 rounded-xl px-3 py-2.5 text-xs text-gray-300 outline-none focus:border-cyan-500/50"
+                        >
+                            <option value="">All Categories</option>
+                            {uniqueCategories.map(cat => (
+                                <option key={cat} value={cat}>{cat}</option>
+                            ))}
+                        </select>
+                        <select
+                            value={dateRange}
+                            onChange={e => setDateRange(Number(e.target.value))}
+                            className="bg-[#121318] border border-gray-800 rounded-xl px-3 py-2.5 text-xs text-gray-300 outline-none focus:border-cyan-500/50"
+                        >
+                            <option value={30}>Last 30 Days</option>
+                            <option value={60}>Last 60 Days</option>
+                            <option value={90}>Last 90 Days</option>
+                            <option value={365}>All Tenders</option>
+                        </select>
+                        <button
+                            onClick={() => setShowOpenOnly(v => !v)}
+                            className={`px-4 py-2.5 rounded-xl text-xs font-black border transition-all ${
+                                showOpenOnly
+                                    ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400'
+                                    : 'bg-[#121318] border-gray-800 text-gray-400 hover:text-white'
+                            }`}
+                        >
+                            {showOpenOnly ? '✅ Open Only' : '🔵 All Status'}
+                        </button>
+                        {(categoryFilter || showOpenOnly || dateRange !== 30) && (
+                            <button
+                                onClick={() => { setCategoryFilter(''); setShowOpenOnly(false); setDateRange(30); }}
+                                className="px-4 py-2.5 rounded-xl text-xs font-black border border-red-800/40 text-red-400 hover:bg-red-900/20 transition-all"
+                            >
+                                ✕ Clear Filters
+                            </button>
+                        )}
+                    </div>
+                    <p className="text-[11px] text-gray-600 font-medium">{filteredTenders.length} tender{filteredTenders.length !== 1 ? 's' : ''} found</p>
 
                     {loadingTenders && tenders.length === 0 ? (
                         <div className="py-20 text-center text-gray-500">Connecting to eTenders database...</div>
@@ -210,10 +268,10 @@ export default function RfqForm({ user, rfqCount, onBack, onNavigate }) {
                         </div>
                     ) : (
                         <div className="space-y-4">
-                            <div className="p-4 bg-cyan-950/20 border border-cyan-800/30 rounded-2xl flex gap-3 items-start">
-                                <span className="text-cyan-400">💡</span>
-                                <p className="text-xs text-cyan-300/90 leading-relaxed">
-                                    <strong>Value Added Service:</strong> These are live public sector tender advertisements. Use this section to browse bidding pipelines. The moment you win, you can request <strong>Purchase Order Financing</strong> to cover supplier quotes!
+                            <div className="p-4 bg-gray-900 border border-gray-700 rounded-2xl flex gap-3 items-start">
+                                <span className="text-cyan-400 text-base flex-shrink-0">💡</span>
+                                <p className="text-xs text-gray-300 leading-relaxed">
+                                    <span className="text-white font-bold">Value Added Service:</span> These are live public sector tender advertisements from National Treasury. Browse bidding opportunities — when you win, request <span className="text-cyan-400 font-bold">Purchase Order Financing</span> to cover supplier costs!
                                 </p>
                             </div>
                             

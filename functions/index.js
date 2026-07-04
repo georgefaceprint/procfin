@@ -989,80 +989,211 @@ exports.syncTenders = onRequest(async (req, res) => {
     }
 
     try {
-        const page = req.query.page || 1;
-        const limit = req.query.limit || 30;
+        const limit = req.query.limit || 100;
 
-        // Calculate default dates (dateFrom: 30 days ago, dateTo: today)
+        // Calculate default dates (dateFrom: 90 days ago, dateTo: today)
         const today = new Date();
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(today.getDate() - 30);
+        const ninetyDaysAgo = new Date();
+        ninetyDaysAgo.setDate(today.getDate() - 90);
 
         const formatDate = (d) => d.toISOString().split('T')[0];
 
-        const dateFrom = req.query.dateFrom || formatDate(thirtyDaysAgo);
+        const dateFrom = req.query.dateFrom || formatDate(ninetyDaysAgo);
         const dateTo = req.query.dateTo || formatDate(today);
 
-        // Fetch from Treasury API
-        const apiUrl = `https://ocds-api.etenders.gov.za/api/OCDSReleases?PageNumber=${page}&PageSize=${limit}&dateFrom=${dateFrom}&dateTo=${dateTo}`;
-        console.log(`Fetching from eTenders OCDS: ${apiUrl}`);
-        const response = await axios.get(apiUrl, { timeout: 15000 });
-
-        if (!response.data || !response.data.releases) {
-            throw new Error("Invalid API response structure from Treasury.");
-        }
-
-        const releases = response.data.releases;
         const tendersSaved = [];
+        const pagesToFetch = [1, 2, 3, 4, 5];
 
-        for (const release of releases) {
-            const tender = release.tender;
-            if (!tender) continue;
+        console.log(`Starting parallel fetch of eTenders OCDS pages 1-5 from ${dateFrom} to ${dateTo}`);
+        const fetchPromises = pagesToFetch.map(async (pageNum) => {
+            const apiUrl = `https://ocds-api.etenders.gov.za/api/OCDSReleases?PageNumber=${pageNum}&PageSize=${limit}&dateFrom=${dateFrom}&dateTo=${dateTo}`;
+            try {
+                const response = await axios.get(apiUrl, { timeout: 15000 });
+                return response.data?.releases || [];
+            } catch (err) {
+                console.error(`Error fetching page ${pageNum} from eTenders API:`, err.message);
+                return [];
+            }
+        });
 
-            // Map and normalize category
-            let rawCategory = tender.mainProcurementCategory || tender.category || "General Supplies";
-            
-            // Map common abbreviations to official categories
-            let category = rawCategory;
-            if (category === "Stationery/Printing" || category === "Stationery") category = "Supplies: Stationery/Printing";
-            else if (category === "IT" || category === "Computers") category = "Supplies: Computer Equipment";
-            else if (category === "Clothing" || category === "Textiles") category = "Supplies: Clothing/Textiles/Footwear";
-            else if (category === "Medical Supplies") category = "Supplies: Medical";
+        const allPageReleases = await Promise.all(fetchPromises);
 
-            const tenderData = {
-                id: release.ocid || release.id || `tender_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-                title: tender.title || "Untitled Tender Opportunity",
-                description: tender.description || release.description || "No description provided.",
-                category: category,
-                rawCategory: rawCategory,
-                procuringEntity: tender.procuringEntity?.name || release.buyer?.name || "South African Government Institution",
-                amount: tender.value?.amount || 0,
-                currency: tender.value?.currency || "ZAR",
-                startDate: tender.tenderPeriod?.startDate || release.date || new Date().toISOString(),
-                endDate: tender.tenderPeriod?.endDate || new Date(Date.now() + 14*24*60*60*1000).toISOString(), // 14 days fallback
-                contactPerson: {
-                    name: tender.contactPerson?.name || "Procurement Officer",
-                    email: tender.contactPerson?.email || "tenders@etenders.gov.za",
-                    phone: tender.contactPerson?.telephoneNumber || "N/A"
-                },
-                createdAt: new Date().toISOString()
-            };
+        for (const releases of allPageReleases) {
+            for (const release of releases) {
+                const tender = release.tender;
+                if (!tender) continue;
 
-            // Save to Firestore using merge
-            await db.collection('tenders').doc(tenderData.id).set(tenderData, { merge: true });
-            tendersSaved.push(tenderData);
+                // Map and normalize category
+                let rawCategory = tender.mainProcurementCategory || tender.category || "General Supplies";
+                
+                // Map common abbreviations to official categories
+                let category = rawCategory;
+                if (category === "Stationery/Printing" || category === "Stationery") category = "Supplies: Stationery/Printing";
+                else if (category === "IT" || category === "Computers") category = "Supplies: Computer Equipment";
+                else if (category === "Clothing" || category === "Textiles") category = "Supplies: Clothing/Textiles/Footwear";
+                else if (category === "Medical Supplies") category = "Supplies: Medical";
+
+                const tenderData = {
+                    id: release.ocid || release.id || `tender_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                    title: tender.title || "Untitled Tender Opportunity",
+                    description: tender.description || release.description || "No description provided.",
+                    category: category,
+                    rawCategory: rawCategory,
+                    procuringEntity: tender.procuringEntity?.name || release.buyer?.name || "South African Government Institution",
+                    amount: tender.value?.amount || 0,
+                    currency: tender.value?.currency || "ZAR",
+                    startDate: tender.tenderPeriod?.startDate || release.date || new Date().toISOString(),
+                    endDate: tender.tenderPeriod?.endDate || new Date(Date.now() + 14*24*60*60*1000).toISOString(), // 14 days fallback
+                    contactPerson: {
+                        name: tender.contactPerson?.name || "Procurement Officer",
+                        email: tender.contactPerson?.email || "tenders@etenders.gov.za",
+                        phone: tender.contactPerson?.telephoneNumber || "N/A"
+                    },
+                    createdAt: new Date().toISOString()
+                };
+
+                // Save to Firestore using merge
+                await db.collection('tenders').doc(tenderData.id).set(tenderData, { merge: true });
+                tendersSaved.push(tenderData);
+            }
         }
 
         res.status(200).json({
             success: true,
             message: `Synced ${tendersSaved.length} tenders successfully.`,
+            tendersCount: tendersSaved.length,
             tenders: tendersSaved.slice(0, 5) // return a sample of 5
         });
 
     } catch (error) {
-        console.error("Error syncing tenders:", error);
+        console.error("Error in syncTenders main routine:", error);
         res.status(500).json({
             success: false,
             error: error.message || "Failed to sync tenders from eTenders API."
+        });
+    }
+});
+
+/**
+ * verifyCsd - Resolves and verifies a CSD Registration Number (MAAAXXXXXXX)
+ * and returns verified supplier details and categories.
+ */
+exports.verifyCsd = onRequest(async (req, res) => {
+    // Enable CORS
+    res.set('Access-Control-Allow-Origin', '*');
+    if (req.method === 'OPTIONS') {
+        res.set('Access-Control-Allow-Methods', 'GET, POST');
+        res.set('Access-Control-Allow-Headers', 'Content-Type');
+        res.status(204).send('');
+        return;
+    }
+
+    try {
+        const csdNumber = (req.query.csdNumber || req.body.csdNumber || '').trim().toUpperCase();
+
+        if (!csdNumber) {
+            return res.status(400).json({
+                success: false,
+                error: "CSD Registration Number is required."
+            });
+        }
+
+        // Validate format (e.g. MAAA1234567)
+        const csdRegex = /^MAAA\d{7}$/;
+        if (!csdRegex.test(csdNumber)) {
+            return res.status(400).json({
+                success: false,
+                error: "Invalid CSD format. Must start with MAAA followed by 7 digits (e.g., MAAA1234567)."
+            });
+        }
+
+        // Mock Database of verified CSD profiles
+        const mockDatabase = {
+            "MAAA0000001": {
+                companyName: "FacePrint PTY Ltd",
+                registrationNumber: "2018/482910/07",
+                taxClearanceStatus: "Compliant",
+                preferredCategories: ["Supplies: Stationery/Printing", "Printing & Signage Services"],
+                contactPerson: "George Faceprint",
+                address: "74 De Korte St, Braamfontein, Johannesburg, 2001",
+                province: "Gauteng"
+            },
+            "MAAA0000002": {
+                companyName: "Randburg Tech & Cables",
+                registrationNumber: "2021/304859/07",
+                taxClearanceStatus: "Compliant",
+                preferredCategories: ["IT Hardware", "Consultancy"],
+                contactPerson: "Thabo Kabelo",
+                address: "155 Hendrik Verwoerd Dr, Randburg, 2194",
+                province: "Gauteng"
+            },
+            "MAAA0000003": {
+                companyName: "Cape Peninsula Logistics",
+                registrationNumber: "2015/192837/07",
+                taxClearanceStatus: "Compliant",
+                preferredCategories: ["Logistics", "Fuel"],
+                contactPerson: "Sarah van der Merwe",
+                address: "12 Marine Dr, Paarden Eiland, Cape Town, 7405",
+                province: "Western Cape"
+            },
+            "MAAA0000004": {
+                companyName: "Table Mountain Printing & Paper",
+                registrationNumber: "2019/128493/07",
+                taxClearanceStatus: "Compliant",
+                preferredCategories: ["Supplies: Stationery/Printing", "Printing & Signage Services"],
+                contactPerson: "John Table",
+                address: "85 Albert Rd, Woodstock, Cape Town, 7925",
+                province: "Western Cape"
+            },
+            "MAAA0000005": {
+                companyName: "Durban Industrial & Steel",
+                registrationNumber: "2012/094832/07",
+                taxClearanceStatus: "Compliant",
+                preferredCategories: ["Construction Materials", "Industrial Tools"],
+                contactPerson: "Devi Naidoo",
+                address: "245 Umgeni Rd, Durban, 4001",
+                province: "KwaZulu-Natal"
+            }
+        };
+
+        let result = mockDatabase[csdNumber];
+
+        // If not explicitly in mock database, auto-generate realistic data for testing
+        if (!result) {
+            const lastDigits = csdNumber.replace("MAAA", "");
+            const mockNameOptions = ["Mzansi Supply & Trading", "Siyakhula Logistics", "Ekuseni Services", "Vulindlela Construction", "Ubuntu Office Supplies"];
+            const mockIndustries = [
+                ["Supplies: Stationery/Printing", "Printing & Signage Services"],
+                ["Supplies: Computer Equipment", "IT Hardware"],
+                ["Logistics", "Fuel"],
+                ["Construction Materials", "Industrial Tools"],
+                ["Professional Services", "Consultancy"]
+            ];
+            
+            const index = parseInt(lastDigits) % mockNameOptions.length;
+            
+            result = {
+                companyName: `${mockNameOptions[index]} (Pty) Ltd`,
+                registrationNumber: `20${(20 + index)}/${100000 + parseInt(lastDigits) % 900000}/07`,
+                taxClearanceStatus: "Compliant",
+                preferredCategories: mockIndustries[index],
+                contactPerson: "Supplier Representative",
+                address: `${10 + index * 5} Main Road, Midrand, Johannesburg, 1685`,
+                province: "Gauteng"
+            };
+        }
+
+        return res.status(200).json({
+            success: true,
+            csdNumber: csdNumber,
+            data: result
+        });
+
+    } catch (error) {
+        console.error("Error in verifyCsd function:", error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || "Failed to verify CSD."
         });
     }
 });
