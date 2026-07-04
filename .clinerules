@@ -1,0 +1,10 @@
+# ProcFin Project Rules & Deployment Guidelines
+
+## Default Frontend Domain
+*   **Production URL:** `https://procfin.online`
+*   **Vercel Project:** `procfin` (org: `georgefaceprints-projects`)
+
+## Deployment Process
+1.  **Git First:** All front-end changes must be committed and pushed to the GitHub repository (`origin/main`) to trigger Vercel's automatic build.
+2.  **No Direct Deploys:** Do not use temporary hosting URLs or other projects. Always deploy to `procfin.online` through the linked `procfin` Vercel project.
+3.  **Local Vercel Link:** The local project configuration `.vercel/project.json` is linked to `procfin`. Do not change this to `procfin-react` or other projects.
