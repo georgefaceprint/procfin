@@ -69,9 +69,15 @@ service cloud.firestore {
       allow write: if request.auth != null && (resource == null || resource.data.supplierId == request.auth.uid) && (request.resource == null || request.resource.data.supplierId == request.auth.uid);
     }
 
+    // Government Tenders
+    match /tenders/{tenderId} {
+      allow read: if request.auth != null;
+      allow write: if false; // Cloud Functions bypass rules
+    }
+
     // System Config
     match /system_config/{configId} {
-      allow read: if true; // Public configs (categories, etc.)
+      allow read: if true; // Public configs (etc.)
       // Only admins can update the platform configuration
       allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.type == 'ADMIN';
     }
