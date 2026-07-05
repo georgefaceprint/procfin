@@ -26,6 +26,7 @@ import ComingSoon from './components/ComingSoon';
 import { useToast } from './components/Toast';
 import { Capacitor } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
+import InstallPrompt from './components/InstallPrompt';
 import './index.css';
 
 export default function App() {
@@ -355,6 +356,7 @@ export default function App() {
         <ComingSoon viewName={currentView} onBack={() => setCurrentView('dashboard')} />
       )}
       <PesaChatbot user={user} liveContext={liveContext} />
+      <InstallPrompt />
     </div>
   );
 }

@@ -22,6 +22,7 @@ export default function RfqForm({ user, rfqCount, onBack, onNavigate }) {
     const [categoryFilter, setCategoryFilter] = useState('');
     const [dateRange, setDateRange] = useState(30); // days
     const [showOpenOnly, setShowOpenOnly] = useState(false);
+    const [selectedTender, setSelectedTender] = useState(null);
     
     useEffect(() => {
         const fetchSettings = async () => {
@@ -278,7 +279,11 @@ export default function RfqForm({ user, rfqCount, onBack, onNavigate }) {
                             {filteredTenders.map(t => {
                                 const daysLeft = Math.ceil((new Date(t.endDate) - new Date()) / (1000 * 60 * 60 * 24));
                                 return (
-                                    <div key={t.id} className="bg-[#121318] border border-gray-800/80 rounded-3xl p-6 hover:border-gray-700 transition-all flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                                    <div
+                                        key={t.id}
+                                        onClick={() => setSelectedTender(t)}
+                                        className="bg-[#121318] border border-gray-800/80 rounded-3xl p-6 hover:border-cyan-700/40 hover:bg-[#141820] transition-all flex flex-col md:flex-row justify-between items-start md:items-center gap-6 cursor-pointer group"
+                                    >
                                         <div className="space-y-2 flex-1">
                                             <div className="flex flex-wrap items-center gap-2">
                                                 <span className="px-2.5 py-0.5 bg-cyan-500/10 text-cyan-400 text-[10px] font-black rounded-full border border-cyan-500/20">{t.category}</span>
@@ -299,16 +304,19 @@ export default function RfqForm({ user, rfqCount, onBack, onNavigate }) {
                                             </div>
                                         </div>
 
-                                        <button
-                                            onClick={() => onNavigate('funding-request', {
-                                                clientName: t.procuringEntity,
-                                                category: t.category,
-                                                description: `Tender Bid Preparation: ${t.title}`
-                                            })}
-                                            className="w-full md:w-auto px-5 py-3.5 bg-cyan-500 hover:bg-cyan-600 text-black text-xs font-black rounded-xl shadow-lg shadow-cyan-500/10 flex items-center justify-center gap-1.5 transition-all whitespace-nowrap"
-                                        >
-                                            PO Financing <ArrowRight size={13} />
-                                        </button>
+                                        <div className="flex flex-col gap-2 items-start md:items-end flex-shrink-0">
+                                            <button
+                                                onClick={e => { e.stopPropagation(); onNavigate('funding-request', {
+                                                    clientName: t.procuringEntity,
+                                                    category: t.category,
+                                                    description: `Tender Bid Preparation: ${t.title}`
+                                                }); }}
+                                                className="w-full md:w-auto px-5 py-3.5 bg-cyan-500 hover:bg-cyan-600 text-black text-xs font-black rounded-xl shadow-lg shadow-cyan-500/10 flex items-center justify-center gap-1.5 transition-all whitespace-nowrap"
+                                            >
+                                                PO Financing <ArrowRight size={13} />
+                                            </button>
+                                            <span className="text-[10px] text-gray-600 font-medium group-hover:text-gray-400 transition-colors">Click to view details →</span>
+                                        </div>
                                     </div>
                                 );
                             })}
@@ -316,6 +324,126 @@ export default function RfqForm({ user, rfqCount, onBack, onNavigate }) {
                     )}
                 </div>
             )}
+
+            {/* ── Tender Detail Drawer ── */}
+            {selectedTender && (() => {
+                const t = selectedTender;
+                const daysLeft = Math.ceil((new Date(t.endDate) - new Date()) / (1000 * 60 * 60 * 24));
+                const ocid = t.id || '';
+                const etendersUrl = `https://ocds-api.etenders.gov.za/api/OCDSReleases?ocid=${encodeURIComponent(ocid)}`;
+                return (
+                    <div
+                        className="fixed inset-0 z-50 flex items-end md:items-center justify-center"
+                        onClick={() => setSelectedTender(null)}
+                    >
+                        {/* Backdrop */}
+                        <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+
+                        {/* Panel */}
+                        <div
+                            onClick={e => e.stopPropagation()}
+                            className="relative z-10 w-full max-w-2xl max-h-[92vh] overflow-y-auto bg-[#0d0f14] border border-gray-800 rounded-t-3xl md:rounded-3xl shadow-2xl animate-slide-up"
+                        >
+                            {/* Header */}
+                            <div className="sticky top-0 bg-[#0d0f14] border-b border-gray-800/60 px-7 py-5 flex items-start justify-between gap-4">
+                                <div className="flex-1">
+                                    <div className="flex flex-wrap gap-2 mb-2">
+                                        <span className="px-2.5 py-0.5 bg-cyan-500/10 text-cyan-400 text-[10px] font-black rounded-full border border-cyan-500/20">{t.category}</span>
+                                        {daysLeft > 0 ? (
+                                            <span className="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-400 text-[10px] font-bold rounded-full border border-emerald-500/20 flex items-center gap-1">
+                                                <Clock size={10} /> {daysLeft} days left
+                                            </span>
+                                        ) : (
+                                            <span className="px-2.5 py-0.5 bg-red-500/10 text-red-400 text-[10px] font-bold rounded-full border border-red-500/20">Closed</span>
+                                        )}
+                                    </div>
+                                    <h3 className="text-lg font-black text-white leading-snug">{t.title}</h3>
+                                    <p className="text-sm text-gray-400 mt-1 flex items-center gap-1.5"><Building2 size={12} className="text-cyan-500" />{t.procuringEntity}</p>
+                                </div>
+                                <button
+                                    onClick={() => setSelectedTender(null)}
+                                    className="text-gray-500 hover:text-white transition-colors text-xl font-bold flex-shrink-0"
+                                >✕</button>
+                            </div>
+
+                            {/* Body */}
+                            <div className="px-7 py-6 space-y-6">
+
+                                {/* Description */}
+                                <div>
+                                    <p className="text-[10px] text-gray-600 font-black uppercase tracking-widest mb-2">Description</p>
+                                    <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-line">{t.description || 'No description available.'}</p>
+                                </div>
+
+                                {/* Key Dates & Value */}
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                    <div className="bg-gray-900 rounded-2xl p-4 border border-gray-800">
+                                        <p className="text-[9px] text-gray-600 font-black uppercase tracking-widest mb-1">Published</p>
+                                        <p className="text-sm text-white font-bold">{new Date(t.startDate).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                                    </div>
+                                    <div className="bg-gray-900 rounded-2xl p-4 border border-gray-800">
+                                        <p className="text-[9px] text-gray-600 font-black uppercase tracking-widest mb-1">Closing Date</p>
+                                        <p className={`text-sm font-bold ${daysLeft > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                            {new Date(t.endDate).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                        </p>
+                                    </div>
+                                    {t.amount > 0 && (
+                                        <div className="bg-gray-900 rounded-2xl p-4 border border-gray-800 col-span-2 md:col-span-1">
+                                            <p className="text-[9px] text-gray-600 font-black uppercase tracking-widest mb-1">Contract Value</p>
+                                            <p className="text-sm text-emerald-400 font-black">{t.currency} {t.amount.toLocaleString()}</p>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Contact Person */}
+                                <div className="bg-gray-900 rounded-2xl p-5 border border-gray-800">
+                                    <p className="text-[9px] text-gray-600 font-black uppercase tracking-widest mb-3">Procurement Contact</p>
+                                    <div className="space-y-2">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-lg">👤</span>
+                                            <span className="text-sm text-white font-bold">{t.contactPerson?.name || 'Procurement Officer'}</span>
+                                        </div>
+                                        {t.contactPerson?.email && t.contactPerson.email !== 'tenders@etenders.gov.za' && (
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-base">✉️</span>
+                                                <a href={`mailto:${t.contactPerson.email}`} className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors">{t.contactPerson.email}</a>
+                                            </div>
+                                        )}
+                                        {t.contactPerson?.phone && t.contactPerson.phone !== 'N/A' && (
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-base">📞</span>
+                                                <a href={`tel:${t.contactPerson.phone}`} className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors">{t.contactPerson.phone}</a>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* CTA Buttons */}
+                                <div className="flex flex-col sm:flex-row gap-3 pt-1">
+                                    <button
+                                        onClick={() => { onNavigate('funding-request', {
+                                            clientName: t.procuringEntity,
+                                            category: t.category,
+                                            description: `Tender Bid Preparation: ${t.title}`
+                                        }); setSelectedTender(null); }}
+                                        className="flex-1 py-4 bg-cyan-500 hover:bg-cyan-600 text-black text-sm font-black rounded-2xl shadow-lg shadow-cyan-500/10 flex items-center justify-center gap-2 transition-all"
+                                    >
+                                        💰 Request PO Financing <ArrowRight size={15} />
+                                    </button>
+                                    <a
+                                        href="https://www.etenders.gov.za/content/advertised-tenders"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex-1 py-4 bg-gray-900 hover:bg-gray-800 text-white text-sm font-black rounded-2xl border border-gray-700 flex items-center justify-center gap-2 transition-all"
+                                    >
+                                        🔗 View on eTenders
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
 
             {/* Tab 2: Local RFQ Form */}
             {tab === 'local' && (

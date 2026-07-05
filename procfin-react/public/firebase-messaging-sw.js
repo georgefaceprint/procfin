@@ -27,3 +27,8 @@ messaging.onBackgroundMessage((payload) => {
 
     self.registration.showNotification(notificationTitle, notificationOptions);
 });
+
+// Add basic fetch listener to satisfy PWA install requirements
+self.addEventListener('fetch', function(event) {
+    // Bypasses the service worker for all fetches, but satisfies the PWA installability requirement
+});
