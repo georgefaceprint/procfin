@@ -32,6 +32,8 @@ export default function Onboarding({ user, onComplete }) {
         preferredCategories: [],
         province: '',
         address: '',
+        newPin: '',
+        confirmPin: '',
         termsAccepted: false
     });
 
@@ -76,10 +78,31 @@ export default function Onboarding({ user, onComplete }) {
         if (step < totalSteps) {
             setStep(step + 1);
         } else {
+            // Validate Passcode
+            const pinTrimmed = formData.newPin.trim();
+            if (pinTrimmed) {
+                if (!/^\d{5}$/.test(pinTrimmed)) {
+                    setError('Your passcode must be exactly 5 digits.');
+                    return;
+                }
+                if (pinTrimmed !== formData.confirmPin.trim()) {
+                    setError('Confirm passcode does not match.');
+                    return;
+                }
+            }
+
             setIsSaving(true);
             setError(null);
             try {
-                await onComplete(formData);
+                const submissionData = { ...formData };
+                if (pinTrimmed) {
+                    submissionData.pinHash = btoa(pinTrimmed);
+                }
+                // Don't save plain text pins to DB
+                delete submissionData.newPin;
+                delete submissionData.confirmPin;
+
+                await onComplete(submissionData);
             } catch (err) {
                 console.error(err);
                 setError(err.message || 'Failed to save onboarding data. Please check your connection.');
@@ -107,6 +130,7 @@ export default function Onboarding({ user, onComplete }) {
                 preferredCategories: ['Tendering', 'Supply Chain'],
                 province: 'Gauteng',
                 address: '123 Main Street, Johannesburg',
+                pinHash: btoa('12345'), // Default dev pin
                 termsAccepted: true
             });
         } catch (err) {
@@ -319,6 +343,47 @@ export default function Onboarding({ user, onComplete }) {
                                         Your identity and registration documents (CSD, Tax Clearance) will be managed in your <strong>Secure Vault</strong> after completing this step.
                                     </p>
                                 </div>
+                                
+                                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-3xl p-6 shadow-sm">
+                                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+                                        <span className="w-7 h-7 rounded-lg bg-red-50 dark:bg-red-900/30 flex items-center justify-center text-sm">🔒</span>
+                                        Setup App Passcode (Optional)
+                                    </h3>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-5">
+                                        Create a 5-digit passcode for fast logins instead of using SMS OTP every time.
+                                    </p>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                        <div>
+                                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">5-digit Passcode</label>
+                                            <input
+                                                type="password"
+                                                name="newPin"
+                                                maxLength={5}
+                                                pattern="[0-9]*"
+                                                inputMode="numeric"
+                                                value={formData.newPin}
+                                                onChange={e => setFormData(prev => ({...prev, newPin: e.target.value.replace(/\D/g, '')}))}
+                                                className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all font-mono tracking-[0.3em] text-center text-lg"
+                                                placeholder="•••••"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Confirm Passcode</label>
+                                            <input
+                                                type="password"
+                                                name="confirmPin"
+                                                maxLength={5}
+                                                pattern="[0-9]*"
+                                                inputMode="numeric"
+                                                value={formData.confirmPin}
+                                                onChange={e => setFormData(prev => ({...prev, confirmPin: e.target.value.replace(/\D/g, '')}))}
+                                                className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all font-mono tracking-[0.3em] text-center text-lg"
+                                                placeholder="•••••"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <label className="flex items-start gap-3 cursor-pointer group">
                                     <input
                                         type="checkbox"

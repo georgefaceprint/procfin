@@ -36,7 +36,7 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showSplash, setShowSplash] = useState(true);
-  const [isUnlocked, setIsUnlocked] = useState(true); // default to true to disable PIN wall
+  const [isUnlocked, setIsUnlocked] = useState(false); // require PIN on return if pinHash exists
   const [liveContext, setLiveContext] = useState({ rfqs: [], deals: [] });
   const toast = useToast();
 
