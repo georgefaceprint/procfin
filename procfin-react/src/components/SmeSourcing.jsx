@@ -376,6 +376,37 @@ export default function SmeSourcing({ user, onBack, onNavigate }) {
                 </div>
             </div>
 
+            {/* Featured Suppliers in this Category */}
+            {suppliersInCategory.filter(s => s.promoted).length > 0 && (
+                <div className="bg-gradient-to-r from-amber-500/10 via-yellow-600/5 to-transparent border border-amber-500/20 rounded-3xl p-6 relative overflow-hidden shadow-lg shadow-amber-500/5">
+                    <div className="absolute top-0 right-0 p-6 opacity-[0.04] text-8xl font-black select-none">💎</div>
+                    <div className="flex flex-col md:flex-row md:items-center gap-6 relative z-10">
+                        <div className="flex-1 space-y-2">
+                            <span className="px-3 py-1 bg-amber-500/20 text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-lg border border-amber-500/30 flex items-center gap-1.5 w-fit">
+                                <Sparkles size={11} className="animate-pulse" /> Featured {selectedCategory} Partner
+                            </span>
+                            <h3 className="text-xl font-black text-white leading-tight mt-2">
+                                {suppliersInCategory.filter(s => s.promoted)[0]?.name}
+                            </h3>
+                            <p className="text-xs text-gray-500 flex items-center gap-1.5">
+                                <MapPin size={10} className="text-amber-400" />
+                                {suppliersInCategory.filter(s => s.promoted)[0]?.province || 'South Africa'}
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => {
+                                const sup = suppliersInCategory.filter(s => s.promoted)[0];
+                                setSelectedSupplier(sup);
+                                setView('inventory');
+                            }}
+                            className="px-6 py-3 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-amber-500/20 flex items-center gap-2 whitespace-nowrap"
+                        >
+                            View Catalog <ChevronRight size={14} />
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {suppliersInCategory.length === 0 ? (
                 <div className="py-24 bg-[#121318] border border-gray-800/80 rounded-2xl text-center">
                     <Building2 size={48} className="mx-auto text-gray-700 mb-4" />
