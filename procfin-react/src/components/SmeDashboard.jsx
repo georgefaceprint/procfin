@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, query, where, onSnapshot, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { useToast } from './Toast';
-import { Search, ClipboardList, Banknote, UserCircle, ShieldCheck, Calculator, ShoppingCart, Sparkles, ChevronRight } from 'lucide-react';
+import { Search, ClipboardList, Banknote, UserCircle, ShieldCheck, Calculator, ShoppingCart, Sparkles, ChevronRight, MessageCircle } from 'lucide-react';
+import ChatModule from './ChatModule';
 
 export default function SmeDashboard({ user, onNavigate }) {
     const [rfqs, setRfqs] = useState([]);
@@ -13,6 +14,7 @@ export default function SmeDashboard({ user, onNavigate }) {
     const [reviewingRfq, setReviewingRfq] = useState(null); // full rfq object
     const [acceptingQuote, setAcceptingQuote] = useState(null); // supplierId being accepted
     const [showAcceptModal, setShowAcceptModal] = useState(false);
+    const [activeChat, setActiveChat] = useState(null);
     const toast = useToast();
 
     useEffect(() => {
@@ -303,15 +305,29 @@ export default function SmeDashboard({ user, onNavigate }) {
                                         </div>
 
                                         {!isClosed && (
-                                            <button
-                                                onClick={() => {
-                                                    setAcceptingQuote({ supplierId: q.supplierId, name: q.supplierName, amount: q.amount });
-                                                    setShowAcceptModal(true);
-                                                }}
-                                                className="mt-4 w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-xs shadow-lg shadow-blue-500/20 transition-all active:scale-95"
-                                            >
-                                                Accept This Quote
-                                            </button>
+                                            <div className="mt-4 flex gap-3">
+                                                <button
+                                                    onClick={() => setActiveChat({
+                                                        contextId: reviewingRfq.id,
+                                                        contextType: 'RFQ',
+                                                        contextTitle: reviewingRfq.title,
+                                                        recipientId: q.supplierId,
+                                                        recipientName: q.supplierName
+                                                    })}
+                                                    className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700/50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2"
+                                                >
+                                                    <MessageCircle size={14} /> Message
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        setAcceptingQuote({ supplierId: q.supplierId, name: q.supplierName, amount: q.amount });
+                                                        setShowAcceptModal(true);
+                                                    }}
+                                                    className="flex-[2] py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-xs shadow-lg shadow-blue-500/20 transition-all active:scale-95"
+                                                >
+                                                    Accept This Quote
+                                                </button>
+                                            </div>
                                         )}
                                     </div>
                                 );
@@ -498,6 +514,19 @@ export default function SmeDashboard({ user, onNavigate }) {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Chat Module */}
+            {activeChat && (
+                <ChatModule 
+                    user={user}
+                    contextId={activeChat.contextId}
+                    contextType={activeChat.contextType}
+                    contextTitle={activeChat.contextTitle}
+                    recipientId={activeChat.recipientId}
+                    recipientName={activeChat.recipientName}
+                    onClose={() => setActiveChat(null)}
+                />
             )}
         </div>
     );

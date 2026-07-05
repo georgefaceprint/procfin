@@ -724,7 +724,67 @@ exports.seedSuppliers = onRequest(async (req, res) => {
         for (const s of suppliers) {
             await db.collection('users').doc(s.uid).set(s);
         }
-        res.status(200).send("Seeded 18 suppliers successfully including faceprint.co.za in Gauteng!");
+
+        const faceprintProducts = [
+            { id: "fp_1", name: "Pull-up Banner Economy", category: "Printing", price: 650, unit: "Unit", minOrderQty: 1, leadTimeDays: 3, supplierId: "supplier_faceprint" },
+            { id: "fp_2", name: "Pop-up Gazebo 3x3m", category: "Printing", price: 2400, unit: "Unit", minOrderQty: 1, leadTimeDays: 5, supplierId: "supplier_faceprint" },
+            { id: "fp_3", name: "Bannerwall 3x2.25m", category: "Printing", price: 4500, unit: "Unit", minOrderQty: 1, leadTimeDays: 5, supplierId: "supplier_faceprint" },
+            { id: "fp_4", name: "Correx Boards A2", category: "Printing", price: 85, unit: "Unit", minOrderQty: 10, leadTimeDays: 2, supplierId: "supplier_faceprint" },
+            { id: "fp_5", name: "Telescopic Flags 3m", category: "Printing", price: 750, unit: "Unit", minOrderQty: 2, leadTimeDays: 4, supplierId: "supplier_faceprint" },
+            { id: "fp_6", name: "A-Frame Banners", category: "Printing", price: 1200, unit: "Unit", minOrderQty: 1, leadTimeDays: 3, supplierId: "supplier_faceprint" },
+            { id: "fp_7", name: "Snapper Frames A1", category: "Printing", price: 450, unit: "Unit", minOrderQty: 5, leadTimeDays: 2, supplierId: "supplier_faceprint" },
+            { id: "fp_8", name: "Vinyl Stickers", category: "Printing", price: 250, unit: "Square Meter", minOrderQty: 5, leadTimeDays: 3, supplierId: "supplier_faceprint" },
+            { id: "fp_9", name: "PVC Banners with Eyelets", category: "Printing", price: 180, unit: "Square Meter", minOrderQty: 2, leadTimeDays: 3, supplierId: "supplier_faceprint" },
+            { id: "fp_10", name: "X-Banners", category: "Printing", price: 400, unit: "Unit", minOrderQty: 2, leadTimeDays: 3, supplierId: "supplier_faceprint" }
+        ];
+
+        const featuredProducts = [
+            // IT Hardware - Randburg Tech
+            { id: "rt_1", name: "Dell Latitude Laptops", category: "IT Hardware", price: 14000, unit: "Unit", minOrderQty: 5, leadTimeDays: 7, supplierId: "supplier_randburg_tech" },
+            { id: "rt_2", name: "HP ProDesk Desktops", category: "IT Hardware", price: 9500, unit: "Unit", minOrderQty: 10, leadTimeDays: 5, supplierId: "supplier_randburg_tech" },
+            { id: "rt_3", name: "Cisco Meraki Routers", category: "IT Hardware", price: 18000, unit: "Unit", minOrderQty: 2, leadTimeDays: 14, supplierId: "supplier_randburg_tech" },
+            { id: "rt_4", name: "Samsung 27 inch Monitors", category: "IT Hardware", price: 3200, unit: "Unit", minOrderQty: 20, leadTimeDays: 5, supplierId: "supplier_randburg_tech" },
+            
+            // Logistics - Cape Logistics
+            { id: "cl_1", name: "Pallet Storage Space", category: "Logistics", price: 250, unit: "Pallet/Month", minOrderQty: 10, leadTimeDays: 1, supplierId: "supplier_cape_logistics" },
+            { id: "cl_2", name: "8-Ton Truck Rental", category: "Logistics", price: 2500, unit: "Day", minOrderQty: 1, leadTimeDays: 2, supplierId: "supplier_cape_logistics" },
+            { id: "cl_3", name: "Local Courier Parcel", category: "Logistics", price: 120, unit: "Parcel", minOrderQty: 50, leadTimeDays: 1, supplierId: "supplier_cape_logistics" },
+            { id: "cl_4", name: "Container Handling", category: "Logistics", price: 1500, unit: "Container", minOrderQty: 1, leadTimeDays: 2, supplierId: "supplier_cape_logistics" },
+            
+            // Construction - Durban Materials
+            { id: "dm_1", name: "Portland Cement 50kg", category: "Construction Materials", price: 95, unit: "Bag", minOrderQty: 100, leadTimeDays: 2, supplierId: "supplier_durban_materials" },
+            { id: "dm_2", name: "Rebar 12mm x 6m", category: "Construction Materials", price: 180, unit: "Unit", minOrderQty: 50, leadTimeDays: 3, supplierId: "supplier_durban_materials" },
+            { id: "dm_3", name: "Plaster Sand", category: "Construction Materials", price: 350, unit: "Cube", minOrderQty: 10, leadTimeDays: 2, supplierId: "supplier_durban_materials" },
+            { id: "dm_4", name: "Corrugated Iron Sheets", category: "Construction Materials", price: 220, unit: "Sheet", minOrderQty: 50, leadTimeDays: 3, supplierId: "supplier_durban_materials" },
+            
+            // Textiles & PPE - PE Textiles
+            { id: "pt_1", name: "High-Vis Safety Vests", category: "Textiles", price: 65, unit: "Unit", minOrderQty: 100, leadTimeDays: 5, supplierId: "supplier_pe_textiles" },
+            { id: "pt_2", name: "Hard Hats SABS Approved", category: "Textiles", price: 85, unit: "Unit", minOrderQty: 100, leadTimeDays: 5, supplierId: "supplier_pe_textiles" },
+            { id: "pt_3", name: "Steel Toe Safety Boots", category: "Textiles", price: 450, unit: "Pair", minOrderQty: 50, leadTimeDays: 7, supplierId: "supplier_pe_textiles" },
+            { id: "pt_4", name: "Overalls 2-Piece", category: "Textiles", price: 220, unit: "Set", minOrderQty: 100, leadTimeDays: 7, supplierId: "supplier_pe_textiles" },
+            
+            // Agriculture - FS Agro
+            { id: "fs_1", name: "NPK Fertilizer 50kg", category: "Industrial Tools", price: 450, unit: "Bag", minOrderQty: 100, leadTimeDays: 5, supplierId: "supplier_fs_agro" },
+            { id: "fs_2", name: "Tractor Diesel", category: "Fuel", price: 22, unit: "Litre", minOrderQty: 1000, leadTimeDays: 2, supplierId: "supplier_fs_agro" },
+            { id: "fs_3", name: "Pesticide Spray 20L", category: "Industrial Tools", price: 1200, unit: "Drum", minOrderQty: 20, leadTimeDays: 5, supplierId: "supplier_fs_agro" },
+            { id: "fs_4", name: "Irrigation Pipes 50mm", category: "Industrial Tools", price: 85, unit: "Meter", minOrderQty: 500, leadTimeDays: 7, supplierId: "supplier_fs_agro" }
+        ];
+
+        const allProducts = [...faceprintProducts, ...featuredProducts].map(p => ({
+            ...p,
+            supplierName: suppliers.find(s => s.uid === p.supplierId)?.name || p.supplierId,
+            province: suppliers.find(s => s.uid === p.supplierId)?.province || "Gauteng",
+            description: "High quality products directly from manufacturer.",
+            inStock: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        }));
+
+        for (const p of allProducts) {
+            await db.collection('catalog_items').doc(p.id).set(p);
+        }
+
+        res.status(200).send("Seeded 18 suppliers and " + allProducts.length + " products successfully!");
     } catch (err) {
         console.error("Seeding Error:", err);
         res.status(500).send("Error seeding suppliers: " + err.message);

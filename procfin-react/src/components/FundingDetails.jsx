@@ -191,48 +191,54 @@ export default function FundingDetails({ user, dealId, onBack }) {
                     </div>
                 </div>
 
-                {/* Status Timeline */}
-                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-3xl p-8 shadow-sm mb-6">
-                    <h3 className="font-bold text-gray-900 dark:text-white mb-8">Deal Progression</h3>
+                {/* Status Timeline Kanban */}
+                <div className="mb-8 overflow-x-auto pb-6 custom-scrollbar snap-x snap-mandatory w-full">
+                    <div className="flex gap-4 min-w-max md:min-w-0 md:w-full px-1">
+                        {STATUS_STEPS.map((step, idx) => {
+                            const isDone = idx <= clampedIdx;
+                            const isActive = idx === clampedIdx;
+                            const isComplete = deal.status === 'Delivery Confirmed';
 
-                    <div className="relative">
-                        <div className="absolute left-[22px] top-6 bottom-10 w-0.5 bg-gray-100 dark:bg-gray-700" />
+                            let cardClasses = 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 opacity-60';
+                            let iconClasses = 'bg-gray-100 text-gray-400 dark:bg-gray-700';
 
-                        <div className="space-y-8">
-                            {STATUS_STEPS.map((step, idx) => {
-                                const isDone = idx <= clampedIdx;
-                                const isActive = idx === clampedIdx;
+                            if (isDone) {
+                                if (isActive && !isComplete) {
+                                    cardClasses = 'border-blue-500 bg-blue-50/30 dark:bg-blue-900/10 shadow-xl shadow-blue-500/10 ring-4 ring-blue-500/10 translate-y-[-4px]';
+                                    iconClasses = 'bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400';
+                                } else {
+                                    cardClasses = 'border-emerald-500 bg-emerald-50/30 dark:bg-emerald-900/10 border-dashed';
+                                    iconClasses = 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-400';
+                                }
+                            }
 
-                                return (
-                                    <div key={step.key} className="relative flex gap-6 items-start">
-                                        <div className={`relative z-10 w-11 h-11 flex-shrink-0 rounded-full flex items-center justify-center text-lg border-2 transition-all ${isDone
-                                            ? isActive && deal.status !== 'Delivery Confirmed'
-                                                ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/30'
-                                                : 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-500/20'
-                                            : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-400 opacity-40'
-                                            }`}>
+                            return (
+                                <div key={step.key} className={`w-[280px] md:flex-1 shrink-0 snap-center rounded-3xl p-5 border-2 transition-all duration-300 relative ${cardClasses}`}>
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shadow-sm ${iconClasses}`}>
                                             {step.icon}
                                         </div>
-                                        <div className="flex-1">
-                                            <h4 className={`font-bold text-sm mb-1 ${isDone ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-600'}`}>
-                                                {step.label}
-                                            </h4>
-                                            <p className={`text-xs leading-relaxed ${isDone ? 'text-gray-500 dark:text-gray-400' : 'text-gray-300 dark:text-gray-700'}`}>
-                                                {step.desc}
-                                            </p>
-
-                                            {/* Waybill link for SME in step 3 */}
-                                            {step.key === 'Waybill Uploaded' && isDone && deal.waybillUrl && (
-                                                <a href={deal.waybillUrl} target="_blank" rel="noreferrer"
-                                                    className="mt-2 inline-flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline">
-                                                    📎 View Supplier Waybill →
-                                                </a>
-                                            )}
-                                        </div>
+                                        {isDone && !isActive && <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-black shadow-sm">✓</div>}
+                                        {isActive && !isComplete && (
+                                            <span className="flex h-3 w-3 mt-1.5 mr-1">
+                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                                                <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
+                                            </span>
+                                        )}
+                                        {isComplete && isActive && <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-black shadow-sm">✓</div>}
                                     </div>
-                                );
-                            })}
-                        </div>
+                                    <h4 className={`font-black text-sm mb-2 ${isDone ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500'}`}>{step.label}</h4>
+                                    <p className={`text-xs leading-relaxed ${isDone ? 'text-gray-600 dark:text-gray-400' : 'text-gray-400 dark:text-gray-600'}`}>{step.desc}</p>
+                                    
+                                    {step.key === 'Waybill Uploaded' && isDone && deal.waybillUrl && (
+                                        <a href={deal.waybillUrl} target="_blank" rel="noreferrer"
+                                            className="mt-4 inline-flex items-center justify-center w-full gap-1 text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-3 py-2.5 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors shadow-sm">
+                                            📎 View Waybill
+                                        </a>
+                                    )}
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
 

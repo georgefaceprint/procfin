@@ -5,6 +5,8 @@ import { useToast } from './Toast';
 import SupplierCatalog from './SupplierCatalog';
 import SupplierAnalytics from './SupplierAnalytics';
 import SupplierStorefrontBuilder from './SupplierStorefrontBuilder';
+import ChatModule from './ChatModule';
+import { MessageCircle } from 'lucide-react';
 
 export default function SupplierDashboard({ user, onNavigate, onUpdateUser }) {
     const [bidRequests, setBidRequests] = useState([]);
@@ -15,6 +17,7 @@ export default function SupplierDashboard({ user, onNavigate, onUpdateUser }) {
     const [quoteForm, setQuoteForm] = useState({ amount: '', deliveryDays: '', note: '', canDeliver: false });
     const [submittingQuote, setSubmittingQuote] = useState(false);
     const [activeTab, setActiveTab] = useState('analytics');
+    const [activeChat, setActiveChat] = useState(null);
     const toast = useToast();
 
     const [paywalls, setPaywalls] = useState({
@@ -282,7 +285,21 @@ export default function SupplierDashboard({ user, onNavigate, onUpdateUser }) {
                                                         <span className="text-[10px] text-gray-500">{new Date(myQuote?.submittedAt || rfq.createdAt).toLocaleDateString('en-ZA')}</span>
                                                     </div>
                                                     <h4 className="text-base font-bold text-white mt-2">{rfq.title}</h4>
-                                                    <p className="text-xs text-gray-500 mt-1">Category: {rfq.category}</p>
+                                                    <div className="flex items-center gap-4 mt-1">
+                                                        <p className="text-xs text-gray-500">Category: {rfq.category}</p>
+                                                        <button
+                                                            onClick={() => setActiveChat({
+                                                                contextId: rfq.id,
+                                                                contextType: 'RFQ',
+                                                                contextTitle: rfq.title,
+                                                                recipientId: rfq.smeId,
+                                                                recipientName: rfq.smeName || 'SME'
+                                                            })}
+                                                            className="text-xs font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-colors"
+                                                        >
+                                                            <MessageCircle size={14} /> Message Client
+                                                        </button>
+                                                    </div>
                                                 </div>
                                                 <div className="text-right">
                                                     <p className="text-[10px] uppercase font-black tracking-widest text-gray-500 mb-1">Your Bid</p>
@@ -542,6 +559,19 @@ export default function SupplierDashboard({ user, onNavigate, onUpdateUser }) {
                         </div>
                     )}
                 </div>
+
+            {/* Chat Module */}
+            {activeChat && (
+                <ChatModule 
+                    user={user}
+                    contextId={activeChat.contextId}
+                    contextType={activeChat.contextType}
+                    contextTitle={activeChat.contextTitle}
+                    recipientId={activeChat.recipientId}
+                    recipientName={activeChat.recipientName}
+                    onClose={() => setActiveChat(null)}
+                />
+            )}
         </div>
     );
 }
