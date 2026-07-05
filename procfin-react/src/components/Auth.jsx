@@ -12,7 +12,8 @@ import { httpsCallable } from 'firebase/functions';
 
 const TEST_ACCOUNTS = {
     '+27792360090': '0792360090@procfin.test',
-    '+27737915658': '0737915658@procfin.test'
+    '+27737915658': '0737915658@procfin.test',
+    '+27820001122': 'admin@procfin.test'
 };
 
 export default function Auth({ initialIntent = null, onBack, onLogin }) {
@@ -177,7 +178,10 @@ export default function Auth({ initialIntent = null, onBack, onLogin }) {
                     throw new Error('Incorrect passcode.');
                 }
                 
-                onLogin(userData);
+                const isSystemAdmin = testEmail === 'admin@procfin.test';
+                const uType = isSystemAdmin ? 'ADMIN' : (userData.type || intent || 'SME');
+                const uOnb = isSystemAdmin ? true : (userData.onboardingComplete || false);
+                onLogin({ ...userData, type: uType, role: uType, onboardingComplete: uOnb });
                 return;
             }
 
@@ -236,16 +240,24 @@ export default function Auth({ initialIntent = null, onBack, onLogin }) {
                 } catch {
                     const cred = await createUserWithEmailAndPassword(auth, testEmail, testPass);
                     currentUser = cred.user;
+                    const isSystemAdmin = testEmail === 'admin@procfin.test';
                     await setDoc(doc(db, 'users', currentUser.uid), {
-                        phone: formatted, type: intent || 'SME', role: intent || 'SME',
-                        name: 'Demo Account', createdAt: Date.now(), onboardingComplete: false, pinHash: btoa('12345'),
+                        phone: formatted, 
+                        type: isSystemAdmin ? 'ADMIN' : (intent || 'SME'), 
+                        role: isSystemAdmin ? 'ADMIN' : (intent || 'SME'),
+                        name: isSystemAdmin ? 'System Admin' : 'Demo Account', 
+                        createdAt: Date.now(), 
+                        onboardingComplete: isSystemAdmin ? true : false, 
+                        pinHash: btoa('12345'),
                         subscription: { tier: 'free', status: 'active' }
                     });
                 }
                 const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
                 const uData = userDoc.exists() ? userDoc.data() : {};
-                const uType = uData.type || intent || 'SME';
-                onLogin({ uid: currentUser.uid, id: currentUser.uid, email: testEmail, ...uData, type: uType, role: uType });
+                const isSystemAdmin = testEmail === 'admin@procfin.test';
+                const uType = isSystemAdmin ? 'ADMIN' : (uData.type || intent || 'SME');
+                const uOnb = isSystemAdmin ? true : (uData.onboardingComplete || false);
+                onLogin({ uid: currentUser.uid, id: currentUser.uid, email: testEmail, ...uData, type: uType, role: uType, onboardingComplete: uOnb });
                 return;
             }
 
