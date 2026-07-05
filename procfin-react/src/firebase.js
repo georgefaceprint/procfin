@@ -4,6 +4,7 @@ import { getAuth, browserLocalPersistence } from "firebase/auth";
 import { getStorage } from "firebase/storage";
 import { getFunctions } from "firebase/functions";
 import { getMessaging } from "firebase/messaging";
+import { getVertexAI } from "firebase/vertexai";
 
 const firebaseConfig = {
     apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -24,6 +25,7 @@ export const auth = getAuth(app);
 
 export const storage = getStorage(app);
 export const functions = getFunctions(app);
+export const vertexAI = getVertexAI(app);
 
 let messaging = null;
 if (typeof window !== 'undefined') {

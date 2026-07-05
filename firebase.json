@@ -1,29 +1,38 @@
 {
-    "hosting": {
-        "public": "procfin-react/dist",
-        "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
-        "rewrites": [{ "source": "**", "destination": "/index.html" }]
-    },
-    "firestore": [
-        {
-            "database": "procfin",
-            "rules": "firestore.rules"
-        }
+  "hosting": {
+    "public": "procfin-react/dist",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
     ],
-    "storage": {
-        "rules": "storage.rules"
-    },
-    "functions": [
-        {
-            "source": "functions",
-            "codebase": "default",
-            "ignore": [
-                "node_modules",
-                ".git",
-                "firebase-debug.log",
-                "firebase-debug.*.log",
-                "*.local"
-            ]
-        }
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
     ]
+  },
+  "firestore": [
+    {
+      "database": "procfin",
+      "rules": "firestore.rules"
+    }
+  ],
+  "storage": {
+    "rules": "storage.rules"
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ]
+    }
+  ]
 }
