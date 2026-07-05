@@ -14,6 +14,7 @@ export default function ProfileEdit({ user, onBack, onSaved }) {
     const [saved, setSaved] = useState(false);
     const toast = useToast();
     const [form, setForm] = useState({
+        csdNumber: user.csdNumber || '',
         name: user.name || '',
         registrationNumber: user.registrationNumber || '',
         phone: user.phone || '',
@@ -25,6 +26,7 @@ export default function ProfileEdit({ user, onBack, onSaved }) {
         newPin: '',
         confirmPin: '',
     });
+    const [isVerifying, setIsVerifying] = useState(false);
 
     const toggleCategory = (cat) => {
         setForm(prev => {
@@ -36,6 +38,32 @@ export default function ProfileEdit({ user, onBack, onSaved }) {
             }
             return prev;
         });
+    };
+
+    const handleVerifyCsd = async () => {
+        if (!form.csdNumber) return;
+        setIsVerifying(true);
+        try {
+            const res = await fetch(`https://us-central1-lambolimos.cloudfunctions.net/verifyCsd?csdNumber=${form.csdNumber}`);
+            const result = await res.json();
+            if (result.success && result.data) {
+                setForm(prev => ({
+                    ...prev,
+                    name: result.data.companyName || prev.name,
+                    registrationNumber: result.data.registrationNumber || prev.registrationNumber,
+                    preferredCategories: result.data.preferredCategories || prev.preferredCategories,
+                    address: result.data.address || prev.address,
+                    province: result.data.province || prev.province,
+                }));
+                toast.success("CSD verified and profile autofilled!");
+            } else {
+                toast.error(result.error || "Could not verify CSD number.");
+            }
+        } catch (err) {
+            toast.error("Network error while verifying CSD.");
+        } finally {
+            setIsVerifying(false);
+        }
     };
 
     const handleSave = async (e) => {
@@ -62,6 +90,7 @@ export default function ProfileEdit({ user, onBack, onSaved }) {
         setLoading(true);
         try {
             const updates = {
+                csdNumber: form.csdNumber,
                 name: form.name,
                 registrationNumber: form.registrationNumber,
                 phone: form.phone,
@@ -161,6 +190,28 @@ export default function ProfileEdit({ user, onBack, onSaved }) {
                         </h3>
                         <div className="space-y-5">
                             <div>
+                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
+                                    CSD Registration Number (Optional)
+                                </label>
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        value={form.csdNumber}
+                                        onChange={e => setForm({ ...form, csdNumber: e.target.value })}
+                                        className="flex-1 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all uppercase"
+                                        placeholder="e.g. MAAA0000000"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={handleVerifyCsd}
+                                        disabled={!form.csdNumber || isVerifying}
+                                        className="px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl disabled:opacity-50 transition-colors whitespace-nowrap"
+                                    >
+                                        {isVerifying ? 'Verifying...' : 'Verify & Autofill'}
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
                                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
                                     {user.type === 'SUPPLIER' ? 'Registered Supplier Name' : 'Company / Display Name'}
                                 </label>

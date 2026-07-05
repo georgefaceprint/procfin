@@ -24,6 +24,7 @@ const INDUSTRIES = [
 export default function Onboarding({ user, onComplete }) {
     const [step, setStep] = useState(1);
     const [formData, setFormData] = useState({
+        csdNumber: '',
         companyName: '',
         regNumber: '',
         phone: '',
@@ -38,7 +39,37 @@ export default function Onboarding({ user, onComplete }) {
     const progress = Math.round((step / totalSteps) * 100);
 
     const [isSaving, setIsSaving] = useState(false);
+    const [isVerifying, setIsVerifying] = useState(false);
     const [error, setError] = useState(null);
+
+    const handleVerifyCsd = async () => {
+        if (!formData.csdNumber) return;
+        setIsVerifying(true);
+        setError(null);
+        try {
+            const res = await fetch(`https://us-central1-lambolimos.cloudfunctions.net/verifyCsd?csdNumber=${formData.csdNumber}`);
+            const result = await res.json();
+            if (result.success && result.data) {
+                setFormData(prev => ({
+                    ...prev,
+                    companyName: result.data.companyName || prev.companyName,
+                    regNumber: result.data.registrationNumber || prev.regNumber,
+                    preferredCategories: result.data.preferredCategories || prev.preferredCategories,
+                    address: result.data.address || prev.address,
+                    province: result.data.province || prev.province,
+                    industry: result.data.preferredCategories ? result.data.preferredCategories[0] : prev.industry
+                }));
+                // Auto-advance to step 3
+                setStep(3);
+            } else {
+                setError(result.error || "Could not verify CSD number. Please enter details manually.");
+            }
+        } catch (err) {
+            setError("Network error while verifying CSD.");
+        } finally {
+            setIsVerifying(false);
+        }
+    };
 
     const handleNext = async (e) => {
         e.preventDefault();
@@ -139,6 +170,32 @@ export default function Onboarding({ user, onComplete }) {
                         {step === 1 && (
                             <>
                                 <div>
+                                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                                        CSD Registration Number (Optional)
+                                    </label>
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            name="csdNumber"
+                                            value={formData.csdNumber}
+                                            onChange={handleChange}
+                                            className="flex-1 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all uppercase"
+                                            placeholder="e.g. MAAA0000000"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={handleVerifyCsd}
+                                            disabled={!formData.csdNumber || isVerifying}
+                                            className="px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl disabled:opacity-50 transition-colors whitespace-nowrap"
+                                        >
+                                            {isVerifying ? 'Verifying...' : 'Verify & Autofill'}
+                                        </button>
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-2">
+                                        Not on CSD? That's fine! You can skip this and fill details manually to trade privately. To qualify for government contracts, you can register at the National Treasury CSD portal.
+                                    </p>
+                                </div>
+                                <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
                                     <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                                         {user.type === 'SUPPLIER' ? 'Registered Supplier Name' : 'Company Name'}
                                     </label>

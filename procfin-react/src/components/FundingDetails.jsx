@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { useToast } from './Toast';
+import ReviewModal from './ReviewModal';
 
 const STATUS_STEPS = [
     { key: 'Pending Review', label: 'Submitted', icon: '📤', desc: 'Your funding request has been received and is in the funder pipeline.' },
@@ -16,6 +17,8 @@ export default function FundingDetails({ user, dealId, onBack }) {
     const [loading, setLoading] = useState(true);
     const [confirming, setConfirming] = useState(false);
     const [showConfirmModal, setShowConfirmModal] = useState(false);
+    const [showReviewModal, setShowReviewModal] = useState(false);
+    const [isDisputing, setIsDisputing] = useState(false);
     const toast = useToast();
 
     useEffect(() => {
@@ -61,11 +64,43 @@ export default function FundingDetails({ user, dealId, onBack }) {
             const updated = await getDoc(doc(db, 'deals', dealId));
             setDeal({ id: updated.id, ...updated.data() });
             setShowConfirmModal(false);
+            
+            // Pop the review modal
+            setShowReviewModal(true);
         } catch (e) {
             console.error('Delivery confirm error:', e);
             toast.error('Failed to confirm delivery. Please try again.');
         } finally {
             setConfirming(false);
+        }
+    };
+
+    const handleDispute = async () => {
+        setIsDisputing(true);
+        try {
+            await updateDoc(doc(db, 'deals', dealId), {
+                status: 'Disputed',
+                disputedAt: new Date().toISOString(),
+                disputedBy: user.uid || user.id,
+            });
+
+            // Notify Admin & Supplier
+            if (deal.supplierId) {
+                const notifRef = doc(db, 'user_notifications', deal.supplierId);
+                const snap = await getDoc(notifRef);
+                const existing = snap.exists() ? (snap.data().data || []) : [];
+                existing.unshift({ id: Date.now(), text: `⚠️ Dispute Raised: ${user.name} reported an issue with delivery. Funds are frozen pending admin arbitration.`, read: false, timestamp: Date.now() });
+                await setDoc(notifRef, { data: existing }, { merge: true });
+            }
+
+            const updated = await getDoc(doc(db, 'deals', dealId));
+            setDeal({ id: updated.id, ...updated.data() });
+            toast.warning('Dispute raised. Admin has been notified for arbitration.');
+        } catch (e) {
+            console.error('Dispute error:', e);
+            toast.error('Failed to raise dispute.');
+        } finally {
+            setIsDisputing(false);
         }
     };
 
@@ -109,7 +144,7 @@ export default function FundingDetails({ user, dealId, onBack }) {
                 </div>
 
                 {/* Cashless Banner */}
-                {deal.status !== 'Pending Review' && deal.status !== 'Bidding Open' && (
+                {deal.status !== 'Pending Review' && deal.status !== 'Bidding Open' && deal.status !== 'Disputed' && (
                     <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-900/40 rounded-2xl p-5 mb-8 flex items-start gap-4">
                         <span className="text-2xl mt-0.5">🤝</span>
                         <div>
@@ -237,12 +272,21 @@ export default function FundingDetails({ user, dealId, onBack }) {
                                         📎 Review Supplier Waybill →
                                     </a>
                                 )}
-                                <button
-                                    onClick={() => setShowConfirmModal(true)}
-                                    className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black shadow-xl shadow-emerald-500/20 transition-all active:scale-95"
-                                >
-                                    ✅ Confirm Delivery & Release Final Payment
-                                </button>
+                                <div className="flex flex-col sm:flex-row gap-3">
+                                    <button
+                                        onClick={() => setShowConfirmModal(true)}
+                                        className="flex-1 py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black shadow-xl shadow-emerald-500/20 transition-all active:scale-95"
+                                    >
+                                        ✅ Confirm Delivery & Release Final Payment
+                                    </button>
+                                    <button
+                                        onClick={handleDispute}
+                                        disabled={isDisputing}
+                                        className="sm:w-auto px-6 py-4 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-2xl font-bold transition-all border border-red-500/20 disabled:opacity-50"
+                                    >
+                                        {isDisputing ? '...' : '🚨 Raise Dispute'}
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -253,8 +297,25 @@ export default function FundingDetails({ user, dealId, onBack }) {
                     <div className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-3xl p-8 text-white text-center shadow-xl shadow-emerald-500/20">
                         <div className="text-5xl mb-3">🎉</div>
                         <h3 className="text-2xl font-black mb-2">Deal Successfully Closed!</h3>
-                        <p className="text-white/80 leading-relaxed">
+                        <p className="text-white/80 leading-relaxed mb-6">
                             All escrow payments have been released. Your contract with {deal.funderName} and {deal.supplierName} is now complete.
+                        </p>
+                        <button 
+                            onClick={() => setShowReviewModal(true)}
+                            className="px-6 py-3 bg-white/20 hover:bg-white/30 rounded-xl font-bold transition-all border border-white/20"
+                        >
+                            ⭐ Review Supplier
+                        </button>
+                    </div>
+                )}
+
+                {/* Disputed Banner */}
+                {deal.status === 'Disputed' && (
+                    <div className="bg-red-500/10 border border-red-500/30 rounded-3xl p-8 text-center mt-6">
+                        <div className="text-5xl mb-3">🚨</div>
+                        <h3 className="text-2xl font-black text-white mb-2">Deal Disputed</h3>
+                        <p className="text-gray-400 leading-relaxed">
+                            A dispute has been raised regarding the delivery. Funds are currently frozen in escrow pending arbitration by ProcFin Admins. You will be contacted shortly.
                         </p>
                     </div>
                 )}
@@ -283,6 +344,18 @@ export default function FundingDetails({ user, dealId, onBack }) {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Review Modal */}
+            {showReviewModal && deal && deal.supplierId && (
+                <ReviewModal 
+                    deal={deal}
+                    reviewerUser={user}
+                    targetUserId={deal.supplierId}
+                    targetUserName={deal.supplierName}
+                    targetUserType="SUPPLIER"
+                    onClose={() => setShowReviewModal(false)}
+                />
             )}
         </div>
     );

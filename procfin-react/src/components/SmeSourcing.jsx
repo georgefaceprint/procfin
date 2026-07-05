@@ -33,6 +33,11 @@ function TrustBadge({ badge, size = 'sm' }) {
             🥇 Gold
         </span>
     );
+    if (badge === 'Top Rated') return (
+        <span className={`${base} bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded-lg font-black uppercase tracking-widest flex items-center gap-1`}>
+            ⭐ Top Rated
+        </span>
+    );
     return (
         <span className={`${base} bg-gray-800/80 text-gray-400 border border-gray-700/60 rounded-lg font-bold uppercase tracking-widest`}>
             🥈 Silver
@@ -77,6 +82,7 @@ export default function SmeSourcing({ user, onBack, onNavigate }) {
                 let badge = 'Silver';
                 if (s.promoted) badge = 'Platinum';
                 else if (s.subscribed) badge = 'Gold';
+                else if (s.rating >= 4.5) badge = 'Top Rated';
                 return { ...s, trustBadge: badge };
             });
             setSuppliers(data);
@@ -109,8 +115,11 @@ export default function SmeSourcing({ user, onBack, onNavigate }) {
             : s.industry ? [s.industry] : [];
         return cats.includes(selectedCategory);
     }).sort((a, b) => {
-        const rank = { Platinum: 3, Gold: 2, Silver: 1 };
-        return rank[b.trustBadge] - rank[a.trustBadge];
+        const rank = { Platinum: 4, Gold: 3, 'Top Rated': 2, Silver: 1 };
+        const rankDiff = (rank[b.trustBadge] || 1) - (rank[a.trustBadge] || 1);
+        if (rankDiff !== 0) return rankDiff;
+        // If badges are equal, sort by rating
+        return (b.rating || 0) - (a.rating || 0);
     });
 
     // Products for selected supplier

@@ -11,6 +11,7 @@ const ADMIN_MODULES = [
     { id: 'categories', title: 'Funding Categories', desc: 'Update the platform taxonomy and matching logic for SME funding requests.', icon: '🏷️', color: 'emerald' },
     { id: 'users', title: 'User Management', desc: 'Audit the entire user base including SMEs, Funders, and Suppliers.', icon: '👥', color: 'amber' },
     { id: 'funder_approval', title: 'Funder Verification', desc: 'Approve or reject high-net-worth individuals and corporate funding entities.', icon: '🛡️', color: 'purple' },
+    { id: 'disputes', title: 'Dispute Resolution', desc: 'Arbitrate delivery disputes between SMEs and Suppliers.', icon: '⚖️', color: 'amber' },
     { id: 'subscriptions', title: 'Subscription Manager', desc: 'Manage SME pricing tiers, pro upgrades, and billing status.', icon: '💳', color: 'indigo' },
     { id: 'activity', title: 'System Activity', desc: 'Live feed of platform notifications, deal statuses, and user sign-ups.', icon: '🔔', color: 'red' },
     { id: 'paywalls', title: 'Paywalls & Upsells', desc: 'Dynamically control SME limits, Supplier free quotas, and pricing logic.', icon: '🚧', color: 'red' },
@@ -123,6 +124,20 @@ export default function AdminPanel({ user, onBack }) {
             toast.error(error.message || 'Failed to run diagnosis.');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const resolveDispute = async (dealId, resolution) => {
+        try {
+            await updateDoc(doc(db, "deals", dealId), {
+                status: resolution, // e.g. 'Delivery Confirmed' or 'Cancelled'
+                resolvedAt: new Date().toISOString(),
+                resolvedBy: user.uid || user.id
+            });
+            toast.success(`Dispute resolved as ${resolution}.`);
+        } catch (error) {
+            console.error("Error resolving dispute:", error);
+            toast.error('Failed to resolve dispute.');
         }
     };
 
@@ -244,6 +259,75 @@ export default function AdminPanel({ user, onBack }) {
                         </tbody>
                     </table>
                     {loading && <div className="p-10 text-center text-gray-400 italic">Scanning decentralized database...</div>}
+                </div>
+            </div>
+        );
+    }
+
+    if (currentModule === 'disputes') {
+        const disputedDeals = deals.filter(d => d.status === 'Disputed');
+        
+        return (
+            <div className="max-w-6xl mx-auto py-10 animate-fade-in">
+                <button onClick={() => setCurrentModule(null)} className="mb-8 text-sm font-bold text-gray-500 hover:text-gray-900 transition-colors">&larr; Back to Control Center</button>
+                <div className="flex justify-between items-end mb-10">
+                    <div>
+                        <h2 className="text-3xl font-black text-gray-900 dark:text-white mb-2">Dispute Resolution</h2>
+                        <p className="text-gray-500">Arbitrate and resolve transaction disputes between users.</p>
+                    </div>
+                    <div className="px-4 py-2 bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-lg border border-amber-100 dark:border-amber-800">
+                        {disputedDeals.length} Active Disputes
+                    </div>
+                </div>
+
+                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-3xl overflow-hidden shadow-xl">
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-100 dark:border-gray-700">
+                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Deal Details</th>
+                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Value</th>
+                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">SME vs Supplier</th>
+                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-right">Arbitration Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                            {disputedDeals.map(d => (
+                                <tr key={d.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition-colors">
+                                    <td className="px-6 py-4">
+                                        <div className="font-bold text-gray-900 dark:text-white">{d.category}</div>
+                                        <div className="text-[10px] text-gray-400 font-mono mt-0.5">{d.id.substring(0,8).toUpperCase()}</div>
+                                        <div className="text-xs text-red-500 mt-1">Reported {new Date(d.disputedAt || Date.now()).toLocaleDateString()}</div>
+                                    </td>
+                                    <td className="px-6 py-4 text-sm font-mono font-bold text-gray-900 dark:text-white">
+                                        R{Number(d.amount || d.dealTerms?.principal || 0).toLocaleString()}
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="text-sm text-gray-900 dark:text-white font-bold">{d.smeName} <span className="text-gray-500 font-normal">(SME)</span></div>
+                                        <div className="text-sm text-gray-900 dark:text-white font-bold mt-1">{d.supplierName} <span className="text-gray-500 font-normal">(Supplier)</span></div>
+                                    </td>
+                                    <td className="px-6 py-4 text-right">
+                                        <div className="flex justify-end gap-2">
+                                            <button
+                                                onClick={() => resolveDispute(d.id, 'Cancelled')}
+                                                className="px-4 py-2 border border-red-200 text-red-600 hover:bg-red-50 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all"
+                                            >
+                                                Force Cancel
+                                            </button>
+                                            <button
+                                                onClick={() => resolveDispute(d.id, 'Delivery Confirmed')}
+                                                className="px-4 py-2 bg-emerald-600 text-white hover:bg-emerald-700 shadow-lg shadow-emerald-600/20 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all"
+                                            >
+                                                Force Release
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                    {disputedDeals.length === 0 && (
+                        <div className="p-10 text-center text-gray-400 italic">No active disputes to arbitrate.</div>
+                    )}
                 </div>
             </div>
         );

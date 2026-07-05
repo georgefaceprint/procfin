@@ -3,6 +3,8 @@ import { db, functions } from '../firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc, arrayUnion, getDoc } from 'firebase/firestore';
 import { useToast } from './Toast';
 import SupplierCatalog from './SupplierCatalog';
+import SupplierAnalytics from './SupplierAnalytics';
+import SupplierStorefrontBuilder from './SupplierStorefrontBuilder';
 
 export default function SupplierDashboard({ user, onNavigate, onUpdateUser }) {
     const [bidRequests, setBidRequests] = useState([]);
@@ -12,7 +14,7 @@ export default function SupplierDashboard({ user, onNavigate, onUpdateUser }) {
     const [quoting, setQuoting] = useState(null);
     const [quoteForm, setQuoteForm] = useState({ amount: '', deliveryDays: '', note: '', canDeliver: false });
     const [submittingQuote, setSubmittingQuote] = useState(false);
-    const [activeTab, setActiveTab] = useState('bids');
+    const [activeTab, setActiveTab] = useState('analytics');
     const toast = useToast();
 
     const [paywalls, setPaywalls] = useState({
@@ -206,7 +208,13 @@ export default function SupplierDashboard({ user, onNavigate, onUpdateUser }) {
                     </div>
 
                     {/* Tab Navigation */}
-                    <div className="flex border-b border-gray-800/60 overflow-x-auto whitespace-nowrap">
+                    <div className="flex border-b border-gray-800/60 overflow-x-auto whitespace-nowrap mb-6">
+                        <button
+                            onClick={() => setActiveTab('analytics')}
+                            className={`px-6 py-3 font-bold text-sm border-b-2 transition-all ${activeTab === 'analytics' ? 'border-cyan-500 text-cyan-400 font-extrabold' : 'border-transparent text-gray-400 hover:text-white'}`}
+                        >
+                            📊 Analytics & Leads
+                        </button>
                         <button
                             onClick={() => setActiveTab('bids')}
                             className={`px-6 py-3 font-bold text-sm border-b-2 transition-all ${activeTab === 'bids' ? 'border-cyan-500 text-cyan-400 font-extrabold' : 'border-transparent text-gray-400 hover:text-white'}`}
@@ -220,14 +228,18 @@ export default function SupplierDashboard({ user, onNavigate, onUpdateUser }) {
                             📋 My Quotes & Contracts
                         </button>
                         <button
-                            onClick={() => setActiveTab('catalog')}
-                            className={`px-6 py-3 font-bold text-sm border-b-2 transition-all ${activeTab === 'catalog' ? 'border-purple-500 text-purple-400 font-extrabold' : 'border-transparent text-gray-400 hover:text-white'}`}
+                            onClick={() => setActiveTab('storefront')}
+                            className={`px-6 py-3 font-bold text-sm border-b-2 transition-all ${activeTab === 'storefront' ? 'border-purple-500 text-purple-400 font-extrabold' : 'border-transparent text-gray-400 hover:text-white'}`}
                         >
-                            🏪 Sourcing Warehouse Catalog
+                            🏪 My Storefront
                         </button>
                     </div>
 
-                    {activeTab === 'catalog' ? (
+                    {activeTab === 'analytics' ? (
+                        <SupplierAnalytics user={user} myQuotes={myQuotes} activeDeals={activeDeals} bidRequests={bidRequests} />
+                    ) : activeTab === 'storefront' ? (
+                        <SupplierStorefrontBuilder user={user} onUpdateUser={onUpdateUser} />
+                    ) : activeTab === 'catalog' ? (
                         <SupplierCatalog user={user} onUpdateUser={onUpdateUser} onNavigate={onNavigate} />
                     ) : activeTab === 'myquotes' ? (
                         <div className="bg-[#121318] border border-gray-800/80 rounded-3xl p-8 shadow-sm">
