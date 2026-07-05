@@ -453,8 +453,13 @@ export default function SmeSourcing({ user, onBack, onNavigate }) {
                                 <h4 className="font-extrabold text-white text-base leading-tight truncate">{sup.name}</h4>
                                 <p className="text-xs text-gray-500 mt-1 flex items-center gap-1.5">
                                     <MapPin size={10} className="text-gray-600 shrink-0" />
-                                    {sup.province || 'South Africa'}
+                                    {[sup.suburb, sup.city, sup.province].filter(Boolean).join(', ') || 'South Africa'}
                                 </p>
+                                {sup.description && (
+                                    <p className="text-[11px] text-gray-500 mt-2 line-clamp-2 leading-relaxed">
+                                        {sup.description}
+                                    </p>
+                                )}
 
                                 {/* Stats */}
                                 <div className="flex items-center gap-4 mt-4 pt-4 border-t border-gray-800/60">
@@ -516,9 +521,14 @@ export default function SmeSourcing({ user, onBack, onNavigate }) {
                                     <TrustBadge badge={sup.trustBadge} size="lg" />
                                 </div>
                                 <p className="text-xs text-gray-500 mt-1 flex items-center gap-3">
-                                    <span className="flex items-center gap-1"><MapPin size={10} /> {sup.province || 'South Africa'}</span>
+                                    <span className="flex items-center gap-1"><MapPin size={10} /> {[sup.suburb, sup.city, sup.province].filter(Boolean).join(', ') || 'South Africa'}</span>
                                     {sup.rating && <span className="flex items-center gap-1 text-yellow-400"><Star size={10} fill="currentColor" /> {sup.rating} / 5</span>}
                                 </p>
+                                {sup.description && (
+                                    <p className="text-sm text-gray-400 mt-3 leading-relaxed max-w-3xl">
+                                        {sup.description}
+                                    </p>
+                                )}
                             </div>
                         </div>
 
