@@ -145,13 +145,13 @@ export default function SmeSourcing({ user, onBack, onNavigate }) {
             ...(Array.isArray(s.preferredCategories) ? s.preferredCategories : []),
             ...(Array.isArray(s.industry) ? s.industry : (s.industry ? [s.industry] : []))
         ];
-        
+
         const uniqueGroups = new Set();
         cats.forEach(c => {
             const group = CATEGORY_GROUPS.find(g => g.items.includes(c) || g.group === c);
             if (group) uniqueGroups.add(group.group);
         });
-        
+
         uniqueGroups.forEach(g => {
             supplierCountByCategory[g] = (supplierCountByCategory[g] || 0) + 1;
         });
@@ -214,7 +214,7 @@ export default function SmeSourcing({ user, onBack, onNavigate }) {
                     timestamp: Date.now()
                 });
                 await setDoc(notifRef, { data: prev }, { merge: true });
-            } catch (_) {}
+            } catch (_) { }
 
             toast.success('RFQ sent to supplier! They will respond with a formal quote.');
             setRfqItems([]);
@@ -290,7 +290,7 @@ export default function SmeSourcing({ user, onBack, onNavigate }) {
                                 const sup = featuredSuppliers[carouselIdx];
                                 const cats = Array.isArray(sup.preferredCategories) ? sup.preferredCategories
                                     : Array.isArray(sup.industry) ? sup.industry
-                                    : sup.industry ? [sup.industry] : [];
+                                        : sup.industry ? [sup.industry] : [];
                                 setSelectedCategory(cats[0] || 'All');
                                 setSelectedSupplier(sup);
                                 setView('inventory');
@@ -434,9 +434,8 @@ export default function SmeSourcing({ user, onBack, onNavigate }) {
                             <button
                                 key={sup.id}
                                 onClick={() => { setSelectedSupplier(sup); setView('inventory'); setSearch(''); setRfqItems([]); }}
-                                className={`text-left bg-[#121318] border rounded-2xl p-6 hover:border-gray-600 hover:scale-[1.01] active:scale-[0.99] transition-all group shadow-md ${
-                                    sup.promoted ? 'border-amber-500/30 shadow-amber-500/5' : 'border-gray-800/50'
-                                }`}
+                                className={`text-left bg-[#121318] border rounded-2xl p-6 hover:border-gray-600 hover:scale-[1.01] active:scale-[0.99] transition-all group shadow-md ${sup.promoted ? 'border-amber-500/30 shadow-amber-500/5' : 'border-gray-800/50'
+                                    }`}
                             >
                                 {/* Header */}
                                 <div className="flex items-start justify-between gap-3 mb-4">
@@ -607,9 +606,8 @@ export default function SmeSourcing({ user, onBack, onNavigate }) {
                                 return (
                                     <div
                                         key={prod.id}
-                                        className={`bg-[#121318] border rounded-2xl overflow-hidden transition-all ${
-                                            selected ? 'border-cyan-500/50 shadow-lg shadow-cyan-500/5' : 'border-gray-800/50 hover:border-gray-700'
-                                        }`}
+                                        className={`bg-[#121318] border rounded-2xl overflow-hidden transition-all ${selected ? 'border-cyan-500/50 shadow-lg shadow-cyan-500/5' : 'border-gray-800/50 hover:border-gray-700'
+                                            }`}
                                     >
                                         {/* Product image */}
                                         <div className="relative h-40 bg-gray-900 overflow-hidden">

@@ -311,6 +311,10 @@ exports.seedSuppliers = onRequest(async (req, res) => {
       // Gauteng
       {
         uid: "supplier_faceprint",
+        logoUrl: "https://images.unsplash.com/photo-1559136555-9303baea8ebd?auto=format&fit=crop&q=80&w=200",
+        city: "Johannesburg",
+        suburb: "Braamfontein",
+        description: "FacePrint PTY Ltd is a leading premium printing and branding manufacturer located in Braamfontein, Johannesburg. We specialize in large-format printing, custom corporate gifts, and high-impact signage solutions for businesses across South Africa. From durable pull-up banners to vibrant vehicle wraps, our state-of-the-art production facility ensures rapid turnaround times without compromising on quality. Partner with FacePrint for reliable, scalable, and visually striking marketing materials that elevate your brand's presence in competitive markets.",
         id: "supplier_faceprint",
         name: "FacePrint PTY Ltd",
         companyName: "FacePrint PTY Ltd",
@@ -338,6 +342,10 @@ exports.seedSuppliers = onRequest(async (req, res) => {
       },
       {
         uid: "supplier_randburg_tech",
+        logoUrl: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=200",
+        city: "Johannesburg",
+        suburb: "Randburg",
+        description: "Randburg Tech Distributors is a premier IT hardware and networking supplier based in Randburg, Johannesburg. We provide enterprise-grade laptops, desktops, and advanced networking equipment such as Cisco Meraki routers to corporate and government sectors. Our commitment to cutting-edge technology and exceptional customer support makes us the preferred partner for IT infrastructure upgrades and secure deployments across South Africa.",
         id: "supplier_randburg_tech",
         name: "Randburg Tech & Cables",
         companyName: "Randburg Tech & Cables",
@@ -361,6 +369,10 @@ exports.seedSuppliers = onRequest(async (req, res) => {
       // Western Cape
       {
         uid: "supplier_cape_logistics",
+        logoUrl: "https://images.unsplash.com/photo-1501504905252-473c47e087f8?auto=format&fit=crop&q=80&w=200",
+        city: "Cape Town",
+        suburb: "Paarden Eiland",
+        description: "Cape Peninsula Logistics operates from Paarden Eiland, Cape Town, offering comprehensive freight forwarding, cold chain storage, and truck rental services. With a strategically located warehouse near the port, we facilitate seamless international and domestic supply chains. Our fleet of 8-ton trucks and climate-controlled facilities ensure your goods are transported safely, efficiently, and on schedule.",
         id: "supplier_cape_logistics",
         name: "Cape Peninsula Logistics",
         companyName: "Cape Peninsula Logistics",
@@ -406,6 +418,10 @@ exports.seedSuppliers = onRequest(async (req, res) => {
       // KwaZulu-Natal
       {
         uid: "supplier_durban_materials",
+        logoUrl: "https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&q=80&w=200",
+        city: "Durban",
+        suburb: "Prospecton",
+        description: "Durban Industrial & Steel is a trusted supplier of heavy-duty construction materials headquartered in Prospecton, Durban. We supply high-grade Portland cement, robust Y12 rebar, and durable corrugated iron sheets to major infrastructure projects and commercial developments. With decades of industry expertise, we guarantee prompt delivery and materials that meet the highest structural safety standards.",
         id: "supplier_durban_materials",
         name: "Durban Industrial & Steel",
         companyName: "Durban Industrial & Steel",
@@ -451,6 +467,10 @@ exports.seedSuppliers = onRequest(async (req, res) => {
       // Eastern Cape
       {
         uid: "supplier_pe_textiles",
+        logoUrl: "https://images.unsplash.com/photo-1558023784-f8343393cb06?auto=format&fit=crop&q=80&w=200",
+        city: "Gqeberha",
+        suburb: "Sidwell",
+        description: "Algoa Bay Textiles, situated in Sidwell, Gqeberha, is a leading manufacturer of industrial safety wear and corporate clothing. We produce high-visibility vests, SABS-approved hard hats, and heavy-duty overalls designed for the toughest working environments. Our focus on workplace safety and ergonomic design ensures that your workforce remains protected and comfortable.",
         id: "supplier_pe_textiles",
         name: "Algoa Bay Textiles",
         companyName: "Algoa Bay Textiles",
@@ -496,6 +516,10 @@ exports.seedSuppliers = onRequest(async (req, res) => {
       // Free State
       {
         uid: "supplier_fs_agro",
+        logoUrl: "https://images.unsplash.com/photo-1500651230702-0e2d8a49d4ad?auto=format&fit=crop&q=80&w=200",
+        city: "Bloemfontein",
+        suburb: "Willows",
+        description: "Free State Agro-Chemicals is an essential agricultural supplier located in Willows, Bloemfontein. We provide premium NPK fertilizers, tractor diesel, and high-yield maize seeds to commercial farmers across the agricultural heartland. Dedicated to sustainable farming practices and maximum crop yields, we supply the critical inputs needed to drive food security and agricultural success.",
         id: "supplier_fs_agro",
         name: "Free State Agro-Chemicals",
         companyName: "Free State Agro-Chemicals",
@@ -770,15 +794,51 @@ exports.seedSuppliers = onRequest(async (req, res) => {
             { id: "fs_4", name: "Irrigation Pipes 50mm", category: "Industrial Tools", price: 85, unit: "Meter", minOrderQty: 500, leadTimeDays: 7, supplierId: "supplier_fs_agro" }
         ];
 
-        const allProducts = [...faceprintProducts, ...featuredProducts].map(p => ({
-            ...p,
-            supplierName: suppliers.find(s => s.uid === p.supplierId)?.name || p.supplierId,
-            province: suppliers.find(s => s.uid === p.supplierId)?.province || "Gauteng",
-            description: "High quality products directly from manufacturer.",
-            inStock: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-        }));
+        const imgMap = {
+            "Pull-up Banner Standard": "https://images.unsplash.com/photo-1596495578065-6e0763fa1178?auto=format&fit=crop&q=80&w=400",
+            "X-Banners": "https://images.unsplash.com/photo-1562564055-71e051d33c19?auto=format&fit=crop&q=80&w=400",
+            "Pop-up Gazebo 3x3m": "https://images.unsplash.com/photo-1533090161767-e6ffed986c88?auto=format&fit=crop&q=80&w=400",
+            "Bannerwall 3x2.25m": "https://images.unsplash.com/photo-1542382257-80da9fb9f551?auto=format&fit=crop&q=80&w=400",
+            "Correx Boards A2": "https://images.unsplash.com/photo-1506806732259-39c2d0268443?auto=format&fit=crop&q=80&w=400",
+            "PVC Banners (per sqm)": "https://images.unsplash.com/photo-1601362840469-51e4d8d58785?auto=format&fit=crop&q=80&w=400",
+            "Vehicle Branding (Half Wrap)": "https://images.unsplash.com/photo-1549317661-bd32c8ce0be2?auto=format&fit=crop&q=80&w=400",
+            "Corporate Gifts Set": "https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&q=80&w=400",
+            "A4 Brochures (1000 units)": "https://images.unsplash.com/photo-1553456558-aff63285aaa1?auto=format&fit=crop&q=80&w=400",
+            "Premium Business Cards": "https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&q=80&w=400",
+            "Dell Latitude 3000 Series": "https://images.unsplash.com/photo-1593642632823-8f785ba67e45?auto=format&fit=crop&q=80&w=400",
+            "Lenovo ThinkCentre M70": "https://images.unsplash.com/photo-1587202372775-e229f172b9d7?auto=format&fit=crop&q=80&w=400",
+            "Cisco Meraki MR46": "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&q=80&w=400",
+            "APC Smart-UPS 1500VA": "https://images.unsplash.com/photo-1517420704952-d9f39e95b43e?auto=format&fit=crop&q=80&w=400",
+            "Pallet Storage (per month)": "https://images.unsplash.com/photo-1586528116311-ad8ed7450948?auto=format&fit=crop&q=80&w=400",
+            "8-Ton Truck Rental (Daily)": "https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?auto=format&fit=crop&q=80&w=400",
+            "Freight Forwarding (per kg)": "https://images.unsplash.com/photo-1578575437130-527eed3abbec?auto=format&fit=crop&q=80&w=400",
+            "Cold Chain Storage (per pallet)": "https://images.unsplash.com/photo-1565891741441-64926e441838?auto=format&fit=crop&q=80&w=400",
+            "Portland Cement 50kg": "https://images.unsplash.com/photo-1518709766631-a6a7f45921c3?auto=format&fit=crop&q=80&w=400",
+            "Y12 Rebar (per ton)": "https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&q=80&w=400",
+            "Corrugated Iron Sheets": "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&q=80&w=400",
+            "Ready-mix Concrete (per m3)": "https://images.unsplash.com/photo-1541888086925-920a0b809a96?auto=format&fit=crop&q=80&w=400",
+            "High-Vis Safety Vests": "https://images.unsplash.com/photo-1586952865914-726fb51db12d?auto=format&fit=crop&q=80&w=400",
+            "Hard Hats (SABS Approved)": "https://images.unsplash.com/photo-1533246875865-c72eb62a14b5?auto=format&fit=crop&q=80&w=400",
+            "Workwear Overalls": "https://images.unsplash.com/photo-1598463285744-8c88fc7c093a?auto=format&fit=crop&q=80&w=400",
+            "Safety Boots (Steel Toe)": "https://images.unsplash.com/photo-1520639888713-7851133b1ed0?auto=format&fit=crop&q=80&w=400",
+            "NPK Fertilizer 50kg": "https://images.unsplash.com/photo-1592982537447-6f2c3c6f2a83?auto=format&fit=crop&q=80&w=400",
+            "Tractor Diesel (per liter)": "https://images.unsplash.com/photo-1555529733-0e670560f7e1?auto=format&fit=crop&q=80&w=400",
+            "Maize Seeds (10kg bag)": "https://images.unsplash.com/photo-1596040033229-a9821ebd058d?auto=format&fit=crop&q=80&w=400",
+            "Irrigation Pipes 50mm": "https://images.unsplash.com/photo-1515276427842-f85802d514a2?auto=format&fit=crop&q=80&w=400"
+        };
+        const allProducts = [...faceprintProducts, ...featuredProducts].map(p => {
+            const defaultImg = `https://placehold.co/600x400/1a1c23/06b6d4?font=Montserrat&text=${encodeURIComponent(p.name).replace(/%20/g, '+')}`;
+            return {
+                ...p,
+                supplierName: suppliers.find(s => s.uid === p.supplierId)?.name || p.supplierId,
+                province: suppliers.find(s => s.uid === p.supplierId)?.province || "Gauteng",
+                description: "High quality products directly from manufacturer.",
+                imageUrl: imgMap[p.name] || defaultImg,
+                inStock: true,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            };
+        });
 
         for (const p of allProducts) {
             await db.collection('catalog_items').doc(p.id).set(p);
