@@ -3,6 +3,7 @@ const nodemailer = require('nodemailer');
 const axios = require('axios');
 const { onDocumentCreated, onDocumentUpdated } = require("firebase-functions/v2/firestore");
 const { onRequest, onCall, HttpsError } = require("firebase-functions/v2/https");
+const { GoogleGenAI } = require('@google/genai');
 
 admin.initializeApp();
 const { getFirestore } = require('firebase-admin/firestore');
@@ -727,6 +728,73 @@ exports.seedSuppliers = onRequest(async (req, res) => {
     } catch (err) {
         console.error("Seeding Error:", err);
         res.status(500).send("Error seeding suppliers: " + err.message);
+    }
+});
+
+exports.verifyVaultDocument = onDocumentCreated({
+    document: 'user_documents/{docId}',
+    database: 'procfin'
+}, async (event) => {
+    const docData = event.data.data();
+    if (!docData || !docData.storagePath) return null;
+    
+    // Skip if already verified
+    if (docData.aiVerification) return null;
+
+    try {
+        const ai = new GoogleGenAI({ vertexai: { project: 'lambolimos', location: 'us-central1' } });
+        
+        const gcsUri = `gs://lambolimos.appspot.com/${docData.storagePath}`;
+        
+        let mimeType = 'image/jpeg';
+        if (docData.storagePath.toLowerCase().endsWith('.pdf')) mimeType = 'application/pdf';
+        else if (docData.storagePath.toLowerCase().endsWith('.png')) mimeType = 'image/png';
+        
+        const prompt = `You are a strict compliance officer for ProcFin (a B2B Purchase Order funding platform).
+Please verify this document. Extract the following information and output ONLY a valid JSON object:
+{
+  "documentType": "The type of document (e.g. CSD Report, Tax Clearance, Bank Statement, ID Copy, CIPC)",
+  "companyName": "The name of the company or person on the document",
+  "isValid": true/false (based on whether the document looks legitimate and matches its purported type),
+  "expiryDate": "YYYY-MM-DD or null if not applicable",
+  "confidenceScore": 0-100
+}`;
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: [
+                {
+                    role: 'user',
+                    parts: [
+                        { fileData: { fileUri: gcsUri, mimeType } },
+                        { text: prompt }
+                    ]
+                }
+            ]
+        });
+
+        const text = response.text.replace(/```json/g, '').replace(/```/g, '').trim();
+        const extracted = JSON.parse(text);
+
+        await event.data.ref.update({
+            aiVerification: {
+                status: extracted.isValid ? 'VERIFIED' : 'REJECTED',
+                extractedData: extracted,
+                timestamp: admin.firestore.FieldValue.serverTimestamp()
+            }
+        });
+        
+        console.log(`Document ${event.params.docId} verified:`, extracted);
+
+    } catch (error) {
+        console.error('OCR Verification failed:', error);
+        await event.data.ref.update({
+            aiVerification: {
+                status: 'ERROR',
+                error: error.message,
+                timestamp: admin.firestore.FieldValue.serverTimestamp()
+            }
+        });
     }
 });
 

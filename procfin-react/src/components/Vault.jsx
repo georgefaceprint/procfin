@@ -192,14 +192,28 @@ export default function Vault({ user, onBack }) {
                                     const isUploading = uploading[docId];
                                     const docProgress = progress[docId] || 0;
 
-                                    let statusLabel = isUploaded ? 'Encrypted & Active' : 'Required';
+                                    let statusLabel = isUploaded ? 'Processing...' : 'Required';
                                     let statusStyle = isUploaded 
-                                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
+                                        ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' 
                                         : 'bg-red-500/5 text-red-400 border-red-500/10';
 
-                                    if (isUploaded && docId === '2') {
-                                        statusLabel = 'Verification Expires in 14d';
-                                        statusStyle = 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+                                    if (isUploaded && uploadedDoc.aiVerification) {
+                                        if (uploadedDoc.aiVerification.status === 'VERIFIED') {
+                                            statusLabel = 'AI Verified & Encrypted';
+                                            statusStyle = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+                                            if (docId === '2') {
+                                                statusLabel = 'Verified (Expires in 14d)';
+                                                statusStyle = 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+                                            }
+                                        } else if (uploadedDoc.aiVerification.status === 'REJECTED') {
+                                            statusLabel = 'Verification Rejected';
+                                            statusStyle = 'bg-red-500/10 text-red-400 border-red-500/20';
+                                        } else {
+                                            statusLabel = 'AI Analysis Error';
+                                            statusStyle = 'bg-orange-500/10 text-orange-400 border-orange-500/20';
+                                        }
+                                    } else if (isUploaded) {
+                                        statusLabel = 'AI Analyzing...';
                                     }
 
                                     return (
@@ -240,7 +254,7 @@ export default function Vault({ user, onBack }) {
                                                 ) : isUploaded ? (
                                                     <>
                                                         <div className="text-[9px] font-bold text-gray-600 uppercase tracking-widest">
-                                                            AES-256 HASH COMPLIANT
+                                                            {uploadedDoc.aiVerification?.status === 'VERIFIED' ? '✅ AI OCR PASSED' : (uploadedDoc.aiVerification?.status === 'REJECTED' ? '❌ AI OCR FAILED' : '⏳ RUNNING OCR...')}
                                                         </div>
                                                         <div className="flex items-center gap-2">
                                                             <a 
