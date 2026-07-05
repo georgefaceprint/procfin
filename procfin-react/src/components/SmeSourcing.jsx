@@ -440,9 +440,13 @@ export default function SmeSourcing({ user, onBack, onNavigate }) {
                             >
                                 {/* Header */}
                                 <div className="flex items-start justify-between gap-3 mb-4">
-                                    <div className="w-12 h-12 bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700/50 rounded-xl flex items-center justify-center text-xl font-black text-gray-400 shrink-0">
-                                        {sup.name?.[0]?.toUpperCase() || '?'}
-                                    </div>
+                                    {sup.logoUrl ? (
+                                        <img src={sup.logoUrl} alt={sup.name} className="w-12 h-12 rounded-xl object-cover border border-gray-700/50 shrink-0" />
+                                    ) : (
+                                        <div className="w-12 h-12 bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700/50 rounded-xl flex items-center justify-center text-xl font-black text-gray-400 shrink-0">
+                                            {sup.name?.[0]?.toUpperCase() || '?'}
+                                        </div>
+                                    )}
                                     <TrustBadge badge={sup.trustBadge} />
                                 </div>
 
@@ -499,9 +503,13 @@ export default function SmeSourcing({ user, onBack, onNavigate }) {
                 <div className={`bg-[#121318] border rounded-2xl p-6 ${sup.promoted ? 'border-amber-500/25 shadow-lg shadow-amber-500/5' : 'border-gray-800/50'}`}>
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div className="flex items-center gap-4">
-                            <div className="w-14 h-14 bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700 rounded-xl flex items-center justify-center text-2xl font-black text-white shrink-0">
-                                {sup.name?.[0]?.toUpperCase()}
-                            </div>
+                            {sup.logoUrl ? (
+                                <img src={sup.logoUrl} alt={sup.name} className="w-14 h-14 rounded-xl object-cover border border-gray-700 shrink-0 shadow-lg shadow-black/20" />
+                            ) : (
+                                <div className="w-14 h-14 bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700 rounded-xl flex items-center justify-center text-2xl font-black text-white shrink-0">
+                                    {sup.name?.[0]?.toUpperCase()}
+                                </div>
+                            )}
                             <div>
                                 <div className="flex items-center gap-2 flex-wrap">
                                     <h2 className="text-xl font-black text-white">{sup.name}</h2>
