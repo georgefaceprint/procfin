@@ -4,7 +4,7 @@ import { getAuth, browserLocalPersistence } from "firebase/auth";
 import { getStorage } from "firebase/storage";
 import { getFunctions } from "firebase/functions";
 import { getMessaging } from "firebase/messaging";
-import { getVertexAI } from "firebase/vertexai";
+import { getAI, GoogleAIBackend } from "firebase/ai";
 
 const firebaseConfig = {
     apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -25,7 +25,7 @@ export const auth = getAuth(app);
 
 export const storage = getStorage(app);
 export const functions = getFunctions(app);
-export const vertexAI = getVertexAI(app);
+export const ai = getAI(app, { backend: new GoogleAIBackend() });
 
 let messaging = null;
 if (typeof window !== 'undefined') {
