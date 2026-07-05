@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Sparkles, X, RefreshCw, Send, MessageCircle } from 'lucide-react';
 import { getGenerativeModel } from "firebase/ai";
-import { ai } from '../firebase';
+import { ai, db } from '../firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
 export default function PesaChatbot({ user, liveContext }) {
     const role = user?.role || user?.type || 'GUEST';
     const [isOpen, setIsOpen] = useState(false);
+    const [platformKnowledge, setPlatformKnowledge] = useState('');
 
     const getInitialGreeting = () => {
         const namePart = user?.name ? ` ${user.name.split(' ')[0]}` : '';
@@ -23,6 +25,26 @@ export default function PesaChatbot({ user, liveContext }) {
     const chatRef = useRef(null);
 
     useEffect(() => {
+        // Fetch Platform Knowledge Base
+        const fetchKnowledge = async () => {
+            try {
+                const q = query(collection(db, 'users'), where('type', '==', 'SUPPLIER'));
+                const snaps = await getDocs(q);
+                let knowledge = "PROCFIN PLATFORM KNOWLEDGE BASE:\n\n-- VERIFIED SUPPLIERS & CATEGORIES --\n";
+                snaps.forEach(doc => {
+                    const data = doc.data();
+                    knowledge += `- ${data.companyName} (${data.province}): Categories: [${(data.preferredCategories || []).join(', ')}]. Rating: ${data.rating}. Completed Deals: ${data.completedDeals}.\n`;
+                });
+                knowledge += "\n-- SYSTEM PRICING & FEES --\n- Platform Fee: 2.5% of funded amount.\n- Standard Escrow Payout: 24-48 hours after delivery verification.\n- Subscription Tier: R1,499/month for suppliers to access Catalog features.\n";
+                setPlatformKnowledge(knowledge);
+            } catch (err) {
+                console.error("Failed to fetch knowledge base", err);
+            }
+        };
+        fetchKnowledge();
+    }, []);
+
+    useEffect(() => {
         // Initialize the Gemini model for Zandile
         try {
             const model = getGenerativeModel(ai, {
@@ -34,7 +56,9 @@ export default function PesaChatbot({ user, liveContext }) {
 The user you are speaking to is a ${role} named ${user?.name || 'User'}.
 Your tone is professional, warm, highly intelligent, and helpful. You speak South African English and occasionally use polite South African greetings.
 You have the power to analyze deals, draft contract terms, and answer any questions about ProcFin's Escrow, RFQ Sourcing, or Funding mechanics.
-Keep your answers very concise and formatted nicely in markdown. Do NOT make up information if you don't know it.`
+Keep your answers very concise and formatted nicely in markdown. Do NOT make up information if you don't know it.
+
+${platformKnowledge}`
             });
             chatRef.current = model.startChat({
                 history: [
@@ -45,7 +69,7 @@ Keep your answers very concise and formatted nicely in markdown. Do NOT make up 
         } catch (error) {
             console.error("Failed to initialize Zandile AI:", error);
         }
-    }, [user, role]);
+    }, [user, role, platformKnowledge]);
 
     useEffect(() => {
         if (scrollRef.current) {

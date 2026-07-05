@@ -78,6 +78,17 @@ const sendPushNotification = async (token, title, body) => {
     }
 };
 
+const sendPushToUser = async (userData, title, body) => {
+    const promises = [];
+    if (userData.pushToken) {
+        promises.push(sendPushNotification(userData.pushToken, title, body));
+    }
+    if (userData.fcmToken && userData.fcmToken !== userData.pushToken) {
+        promises.push(sendPushNotification(userData.fcmToken, title, body));
+    }
+    await Promise.all(promises);
+};
+
 exports.onUserVerified = onDocumentUpdated({
     document: 'users/{userId}',
     database: 'procfin'
@@ -120,9 +131,7 @@ exports.onUserVerified = onDocumentUpdated({
             }
 
             // Trigger Push Notification
-            if (newValue.pushToken) {
-                await sendPushNotification(newValue.pushToken, 'Profile Verified! ✅', `Good news ${name}! Your profile has been successfully verified.`);
-            }
+            await sendPushToUser(newValue, 'Profile Verified! ✅', `Good news ${name}! Your profile has been successfully verified.`);
         } catch (error) {
             console.error('Error sending verification email:', error);
         }
@@ -174,9 +183,7 @@ exports.onDealCreated = onDocumentCreated({
         }
         
         // Trigger Push Notification
-        if (smeData.pushToken) {
-            await sendPushNotification(smeData.pushToken, 'Funding Request Submitted 💰', `Your request of R${Number(deal.amount).toLocaleString()} is being matched with funders.`);
-        }
+        await sendPushToUser(smeData, 'Funding Request Submitted 💰', `Your request of R${Number(deal.amount).toLocaleString()} is being matched with funders.`);
     } catch (error) {
         console.error('Error sending funding request email:', error);
     }
@@ -203,9 +210,7 @@ exports.onDealUpdated = onDocumentUpdated({
                 if (smeData.whatsapp) {
                     await sendSMS(smeData.whatsapp, `ProcFin: Great news! Your funding request for ${newValue.supplierName || 'your supplier'} has been approved and capital secured! Log in to view contract.`);
                 }
-                if (smeData.pushToken) {
-                    await sendPushNotification(smeData.pushToken, 'Capital Secured! 💰', `Funding approved for ${newValue.supplierName || 'your supplier'}.`);
-                }
+                await sendPushToUser(smeData, 'Capital Secured! 💰', `Funding approved for ${newValue.supplierName || 'your supplier'}.`);
             }
         }
         
@@ -217,9 +222,7 @@ exports.onDealUpdated = onDocumentUpdated({
                 if (supplierData.whatsapp) {
                     await sendSMS(supplierData.whatsapp, `ProcFin: ${newValue.smeName} has secured funding for their contract. Funds are in escrow. You may begin fulfillment.`);
                 }
-                if (supplierData.pushToken) {
-                    await sendPushNotification(supplierData.pushToken, 'Contract Funded! 🔒', `${newValue.smeName} secured funding. Funds in escrow.`);
-                }
+                await sendPushToUser(supplierData, 'Contract Funded! 🔒', `${newValue.smeName} secured funding. Funds in escrow.`);
             }
         }
     }
@@ -242,9 +245,7 @@ exports.onRfqCreated = onDocumentCreated({
             if (supplierData.whatsapp) {
                 await sendSMS(supplierData.whatsapp, `ProcFin: You have received a new Request for Quote (RFQ) from ${smeName}. Log in to procfin.online to review and submit your formal quote.`);
             }
-            if (supplierData.pushToken) {
-                await sendPushNotification(supplierData.pushToken, 'New RFQ Received! 📋', `You have received a new RFQ from ${smeName}.`);
-            }
+            await sendPushToUser(supplierData, 'New RFQ Received! 📋', `You have received a new RFQ from ${smeName}.`);
         }
     }
     return null;
@@ -296,9 +297,7 @@ exports.onRfqAccepted = onDocumentUpdated({
             if (smeData.whatsapp) {
                 await sendSMS(smeData.whatsapp, `ProcFin: You accepted ${supplierName}'s quote for R${Number(amount).toLocaleString()}. Log in to secure your funding.`);
             }
-            if (smeData.pushToken) {
-                await sendPushNotification(smeData.pushToken, 'Quote Accepted! 🤝', `You accepted ${supplierName}'s quote for R${Number(amount).toLocaleString()}.`);
-            }
+            await sendPushToUser(smeData, 'Quote Accepted! 🤝', `You accepted ${supplierName}'s quote for R${Number(amount).toLocaleString()}.`);
         } catch (error) {
             console.error('Error sending RFQ acceptance email:', error);
         }
