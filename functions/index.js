@@ -1265,4 +1265,53 @@ exports.verifyCsd = onRequest(async (req, res) => {
     }
 });
 
+exports.parsePurchaseOrder = onCall(async (request) => {
+    const { fileUrl } = request.data;
+    if (!fileUrl) throw new HttpsError('invalid-argument', 'Missing fileUrl');
 
+    try {
+        const ai = new GoogleGenAI({ vertexai: { project: 'lambolimos', location: 'us-central1' } });
+        
+        let mimeType = 'image/jpeg';
+        if (fileUrl.toLowerCase().endsWith('.pdf')) mimeType = 'application/pdf';
+        else if (fileUrl.toLowerCase().endsWith('.png')) mimeType = 'image/png';
+        
+        // Extract storage path from frontend URL
+        let fileUri = fileUrl;
+        if (fileUrl.startsWith('http')) {
+            const urlObj = new URL(fileUrl);
+            const pathParts = decodeURIComponent(urlObj.pathname).split('/');
+            const storagePath = pathParts.slice(pathParts.indexOf('o') + 1).join('/');
+            fileUri = `gs://lambolimos.appspot.com/${storagePath}`;
+        }
+
+        const prompt = `You are a B2B procurement assistant for ProcFin. Parse this Purchase Order/Document and extract the items needed.
+Output ONLY a valid JSON object matching this schema exactly:
+{
+  "title": "A short descriptive title (e.g. '50 Dell Laptops', '20 Tons Cement')",
+  "category": "The best matching category (e.g. IT Hardware, Construction Materials, etc)",
+  "specs": "Detailed description containing quantities, brands, specifications, and delivery timelines mentioned."
+}`;
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: [
+                {
+                    role: 'user',
+                    parts: [
+                        { fileData: { fileUri, mimeType } },
+                        { text: prompt }
+                    ]
+                }
+            ]
+        });
+
+        const text = response.text.replace(/```json/g, '').replace(/```/g, '').trim();
+        const extracted = JSON.parse(text);
+
+        return { success: true, data: extracted };
+    } catch (error) {
+        console.error('Parse PO failed:', error);
+        throw new HttpsError('internal', 'Error parsing PO: ' + error.message);
+    }
+});

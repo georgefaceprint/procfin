@@ -263,6 +263,7 @@ export default function SmeDashboard({ user, onNavigate }) {
                             quotes.map((q, idx) => {
                                 const isAccepted = acceptedQuote?.supplierId === q.supplierId;
                                 const isLowest = quotes.length > 1 && q.amount === Math.min(...quotes.map(x => x.amount));
+                                const isFastest = quotes.length > 1 && q.deliveryDays && q.deliveryDays === Math.min(...quotes.map(x => x.deliveryDays || Infinity));
 
                                 return (
                                     <div key={idx} className={`relative rounded-2xl border-2 p-5 transition-all ${isAccepted
@@ -278,7 +279,10 @@ export default function SmeDashboard({ user, onNavigate }) {
                                                 <span className="text-[10px] font-black uppercase tracking-widest px-2 py-1 bg-emerald-500 text-white rounded-lg">✓ Accepted</span>
                                             )}
                                             {isLowest && !isAccepted && (
-                                                <span className="text-[10px] font-black uppercase tracking-widest px-2 py-1 bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 rounded-lg border border-blue-100 dark:border-blue-800">💡 Lowest</span>
+                                                <span className="text-[10px] font-black uppercase tracking-widest px-2 py-1 bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 rounded-lg border border-blue-100 dark:border-blue-800">💡 Lowest Price</span>
+                                            )}
+                                            {isFastest && !isAccepted && (
+                                                <span className="text-[10px] font-black uppercase tracking-widest px-2 py-1 bg-purple-50 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400 rounded-lg border border-purple-100 dark:border-purple-800">⚡ Fastest Delivery</span>
                                             )}
                                         </div>
 

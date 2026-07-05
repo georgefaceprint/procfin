@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { db, storage } from '../firebase';
+import React, { useState, useEffect, useRef } from 'react';
+import { db, storage, functions } from '../firebase';
 import { collection, addDoc, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { httpsCallable } from 'firebase/functions';
 import { CATEGORIES } from '../constants/categories';
 import { useToast } from './Toast';
 import { doc, getDoc } from 'firebase/firestore';
 
-import { Sparkles, Search, Building2, Calendar, Clock, ArrowRight } from 'lucide-react';
+import { Sparkles, Search, Building2, Calendar, Clock, ArrowRight, Bot, Loader2 } from 'lucide-react';
 
 export default function RfqForm({ user, rfqCount, onBack, onNavigate }) {
     const planName = user.plan || 'Free';
@@ -96,6 +97,38 @@ export default function RfqForm({ user, rfqCount, onBack, onNavigate }) {
         file: null,
         isVip: false
     });
+
+    const handleAIFill = async () => {
+        if (!formData.file) {
+            toast.error("Please select a document first.");
+            return;
+        }
+        setLoading(true);
+        toast.info("Scanning document with AI...");
+        try {
+            const storageRef = ref(storage, `temp_rfq_docs/${user.id}_${Date.now()}_${formData.file.name}`);
+            const snapshot = await uploadBytes(storageRef, formData.file);
+            const fileUrl = await getDownloadURL(snapshot.ref);
+
+            const parsePurchaseOrder = httpsCallable(functions, 'parsePurchaseOrder');
+            const result = await parsePurchaseOrder({ fileUrl });
+            
+            if (result.data.success) {
+                setFormData(prev => ({
+                    ...prev,
+                    title: result.data.data.title || prev.title,
+                    category: result.data.data.category || prev.category,
+                    specs: result.data.data.specs || prev.specs
+                }));
+                toast.success("Form auto-filled successfully!");
+            }
+        } catch (e) {
+            console.error("AI Scan Error:", e);
+            toast.error("AI could not read this document.");
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -454,6 +487,7 @@ export default function RfqForm({ user, rfqCount, onBack, onNavigate }) {
                             <input
                                 type="text"
                                 required
+                                value={formData.title}
                                 className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
                                 placeholder="e.g. 50 Dell Laptops, or 20 Tons Cement"
                                 onChange={e => setFormData({ ...formData, title: e.target.value })}
@@ -463,6 +497,7 @@ export default function RfqForm({ user, rfqCount, onBack, onNavigate }) {
                             <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Supplier Category</label>
                             <select
                                 required
+                                value={formData.category}
                                 className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
                                 onChange={e => setFormData({ ...formData, category: e.target.value })}
                             >
@@ -475,6 +510,7 @@ export default function RfqForm({ user, rfqCount, onBack, onNavigate }) {
                             <textarea
                                 required
                                 rows="4"
+                                value={formData.specs}
                                 className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none resize-none"
                                 placeholder="Mention specific grades, delivery timelines, etc."
                                 onChange={e => setFormData({ ...formData, specs: e.target.value })}
@@ -492,11 +528,23 @@ export default function RfqForm({ user, rfqCount, onBack, onNavigate }) {
                         </div>
                         <div>
                             <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Reference Document (Optional)</label>
-                            <input
-                                type="file"
-                                className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                                onChange={e => setFormData({ ...formData, file: e.target.files[0] })}
-                            />
+                            <div className="flex gap-3 items-center">
+                                <input
+                                    type="file"
+                                    className="flex-1 text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                                    onChange={e => setFormData({ ...formData, file: e.target.files[0] })}
+                                />
+                                {formData.file && (
+                                    <button
+                                        type="button"
+                                        onClick={handleAIFill}
+                                        disabled={loading}
+                                        className="px-4 py-2 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white rounded-xl font-bold text-xs shadow-md shadow-purple-500/20 flex items-center gap-2 transition-all"
+                                    >
+                                        {loading ? <Loader2 size={14} className="animate-spin" /> : <Bot size={14} />} AI Auto-Fill
+                                    </button>
+                                )}
+                            </div>
                         </div>
                         
                         <div className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30 rounded-xl p-4 flex gap-4 items-start cursor-pointer hover:bg-amber-500/20 transition-colors" onClick={() => setFormData({ ...formData, isVip: !formData.isVip })}>
