@@ -119,9 +119,16 @@ export default function Auth({ initialIntent = null, onBack, onLogin }) {
         const formatted = formatPhone(phone);
 
         try {
-            // Test accounts bypass check
+            // Test accounts bypass the REAL SMS backend but still need to check if they exist
             if (TEST_ACCOUNTS[formatted]) {
-                setAuthStep('otp_entry');
+                const checkPhoneFn = httpsCallable(functions, 'checkPhone');
+                const result = await checkPhoneFn({ phoneNumber: formatted });
+                
+                if (result.data.exists) {
+                    setAuthStep('pin_entry');
+                } else {
+                    setAuthStep('otp_entry');
+                }
                 setLoading(false);
                 return;
             }
@@ -133,7 +140,7 @@ export default function Auth({ initialIntent = null, onBack, onLogin }) {
                 // Returning user → go straight to PIN entry
                 setAuthStep('pin_entry');
             } else {
-                // New user → send OTP
+                // New user → send REAL OTP
                 const requestOtpFn = httpsCallable(functions, 'requestOtp');
                 await requestOtpFn({ phoneNumber: formatted });
                 setAuthStep('otp_entry');
@@ -155,6 +162,25 @@ export default function Auth({ initialIntent = null, onBack, onLogin }) {
         const formatted = formatPhone(phone);
 
         try {
+            if (TEST_ACCOUNTS[formatted]) {
+                // Test account pin verify simulation
+                const testEmail = TEST_ACCOUNTS[formatted];
+                const testPass = 'test47183';
+                const userCredential = await signInWithEmailAndPassword(auth, testEmail, testPass);
+                
+                const userRef = doc(db, 'users', userCredential.user.uid);
+                const userSnap = await getDoc(userRef);
+                const userData = userSnap.exists() ? { uid: userCredential.user.uid, id: userCredential.user.uid, ...userSnap.data() } : { uid: userCredential.user.uid, id: userCredential.user.uid };
+                
+                // Verify the PIN hash matches for the test account
+                if (userData.pinHash && userData.pinHash !== btoa(pin)) {
+                    throw new Error('Incorrect passcode.');
+                }
+                
+                onLogin(userData);
+                return;
+            }
+
             const verifyPinFn = httpsCallable(functions, 'verifyPin');
             const result = await verifyPinFn({ phoneNumber: formatted, pin });
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getZandileResponse } from '../constants/pesaKnowledge';
 import { Sparkles, X, RefreshCw, Send, MessageCircle } from 'lucide-react';
+import { getGenerativeModel } from "firebase/ai";
+import { ai } from '../firebase';
 
 export default function PesaChatbot({ user, liveContext }) {
     const role = user?.role || user?.type || 'GUEST';
@@ -19,6 +20,32 @@ export default function PesaChatbot({ user, liveContext }) {
     const [input, setInput] = useState('');
     const [isTyping, setIsTyping] = useState(false);
     const scrollRef = useRef(null);
+    const chatRef = useRef(null);
+
+    useEffect(() => {
+        // Initialize the Gemini model for Zandile
+        try {
+            const model = getGenerativeModel(ai, {
+                model: "gemini-2.5-flash", // Best model for general chat
+                generationConfig: {
+                    temperature: 0.4, // Professional but helpful
+                },
+                systemInstruction: `You are Zandile, the expert Chief Financial Officer and digital advisor for ProcFin (a South African B2B Purchase Order funding platform).
+The user you are speaking to is a ${role} named ${user?.name || 'User'}.
+Your tone is professional, warm, highly intelligent, and helpful. You speak South African English and occasionally use polite South African greetings.
+You have the power to analyze deals, draft contract terms, and answer any questions about ProcFin's Escrow, RFQ Sourcing, or Funding mechanics.
+Keep your answers very concise and formatted nicely in markdown. Do NOT make up information if you don't know it.`
+            });
+            chatRef.current = model.startChat({
+                history: [
+                    { role: "user", parts: [{ text: "Hello!" }] },
+                    { role: "model", parts: [{ text: getInitialGreeting() }] }
+                ]
+            });
+        } catch (error) {
+            console.error("Failed to initialize Zandile AI:", error);
+        }
+    }, [user, role]);
 
     useEffect(() => {
         if (scrollRef.current) {
@@ -26,7 +53,7 @@ export default function PesaChatbot({ user, liveContext }) {
         }
     }, [messages, isTyping]);
 
-    const handleSend = (text = input) => {
+    const handleSend = async (text = input) => {
         if (!text.trim()) return;
 
         const newMessages = [...messages, { role: 'user', text }];
@@ -34,17 +61,41 @@ export default function PesaChatbot({ user, liveContext }) {
         setInput('');
         setIsTyping(true);
 
-        setTimeout(() => {
-            const response = getZandileResponse(text, liveContext, user);
-            setMessages([...newMessages, { role: 'assistant', text: response }]);
+        try {
+            if (!chatRef.current) throw new Error("Chat not initialized");
+            // Inject live context as hidden prompt context if we have it
+            let prompt = text;
+            if (liveContext) {
+                 prompt = `[SYSTEM NOTE: User's current context: ${JSON.stringify(liveContext)}]\n\nUser Question: ${text}`;
+            }
+
+            const result = await chatRef.current.sendMessage(prompt);
+            const responseText = result.response.text();
+            
+            setMessages(prev => [...prev, { role: 'assistant', text: responseText }]);
+        } catch (error) {
+            console.error("Zandile Error:", error);
+            setMessages(prev => [...prev, { role: 'assistant', text: "Uxolo (Sorry), I'm having trouble connecting to my brain right now. Please try again in a moment." }]);
+        } finally {
             setIsTyping(false);
-        }, 800);
+        }
     };
 
     const handleReset = () => {
         setMessages([{ role: 'assistant', text: getInitialGreeting() }]);
         setInput('');
         setIsTyping(false);
+        
+        // Re-initialize chat
+        if (ai) {
+             const model = getGenerativeModel(ai, { model: "gemini-2.5-flash" });
+             chatRef.current = model.startChat({
+                 history: [
+                     { role: "user", parts: [{ text: "Hello!" }] },
+                     { role: "model", parts: [{ text: getInitialGreeting() }] }
+                 ]
+             });
+        }
     };
 
     const getQuickQuestions = () => {
