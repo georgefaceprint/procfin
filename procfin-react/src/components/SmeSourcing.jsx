@@ -108,12 +108,14 @@ export default function SmeSourcing({ user, onBack, onNavigate }) {
     }, [featuredSuppliers.length]);
 
     // ── Derived data ───────────────────────────────────────────────────────────
-    // Suppliers in selected category
     const suppliersInCategory = suppliers.filter(s => {
-        const cats = Array.isArray(s.preferredCategories) ? s.preferredCategories
-            : Array.isArray(s.industry) ? s.industry
-            : s.industry ? [s.industry] : [];
-        return cats.includes(selectedCategory);
+        const cats = [
+            ...(Array.isArray(s.preferredCategories) ? s.preferredCategories : []),
+            ...(Array.isArray(s.industry) ? s.industry : (s.industry ? [s.industry] : []))
+        ];
+        const group = CATEGORY_GROUPS.find(g => g.group === selectedCategory);
+        const validGroupItems = group ? group.items : [];
+        return cats.includes(selectedCategory) || cats.some(c => validGroupItems.includes(c));
     }).sort((a, b) => {
         const rank = { Platinum: 4, Gold: 3, 'Top Rated': 2, Silver: 1 };
         const rankDiff = (rank[b.trustBadge] || 1) - (rank[a.trustBadge] || 1);
@@ -130,17 +132,28 @@ export default function SmeSourcing({ user, onBack, onNavigate }) {
     // Count products per category (for category cards)
     const productCountByCategory = {};
     allProducts.forEach(p => {
-        productCountByCategory[p.category] = (productCountByCategory[p.category] || 0) + 1;
+        const group = CATEGORY_GROUPS.find(g => g.items.includes(p.category) || g.group === p.category);
+        if (group) {
+            productCountByCategory[group.group] = (productCountByCategory[group.group] || 0) + 1;
+        }
     });
 
     // Count suppliers per category
     const supplierCountByCategory = {};
     suppliers.forEach(s => {
-        const cats = Array.isArray(s.preferredCategories) ? s.preferredCategories
-            : Array.isArray(s.industry) ? s.industry
-            : s.industry ? [s.industry] : [];
+        const cats = [
+            ...(Array.isArray(s.preferredCategories) ? s.preferredCategories : []),
+            ...(Array.isArray(s.industry) ? s.industry : (s.industry ? [s.industry] : []))
+        ];
+        
+        const uniqueGroups = new Set();
         cats.forEach(c => {
-            supplierCountByCategory[c] = (supplierCountByCategory[c] || 0) + 1;
+            const group = CATEGORY_GROUPS.find(g => g.items.includes(c) || g.group === c);
+            if (group) uniqueGroups.add(group.group);
+        });
+        
+        uniqueGroups.forEach(g => {
+            supplierCountByCategory[g] = (supplierCountByCategory[g] || 0) + 1;
         });
     });
 
