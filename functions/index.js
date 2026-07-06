@@ -3,21 +3,37 @@ const nodemailer = require('nodemailer');
 const axios = require('axios');
 const { onDocumentCreated, onDocumentUpdated } = require("firebase-functions/v2/firestore");
 const { onRequest, onCall, HttpsError } = require("firebase-functions/v2/https");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { GoogleGenAI } = require('@google/genai');
+
+const { getVerificationTemplate, getFundingSubmittedTemplate, getRfqAcceptedTemplate } = require('./emailTemplates');
 
 admin.initializeApp();
 const { getFirestore } = require('firebase-admin/firestore');
 const db = getFirestore(undefined, 'procfin');
 
-// Configure the email transport using the default SMTP transport and a Gmail account/App Password.
-// For production, using SendGrid or Mailgun is recommended.
-const mailTransport = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-    },
-});
+// Configure the email transport using standard SMTP (or Gmail fallback)
+const mailTransport = nodemailer.createTransport(
+    process.env.SMTP_HOST 
+    ? {
+        host: process.env.SMTP_HOST,
+        port: Number(process.env.SMTP_PORT) || 465,
+        secure: process.env.SMTP_SECURE !== 'false', // true by default (TLS port 465)
+        auth: {
+            user: process.env.SMTP_USER || process.env.EMAIL_USER,
+            pass: process.env.SMTP_PASS || process.env.EMAIL_PASS,
+        },
+      }
+    : {
+        service: 'gmail',
+        auth: {
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASS,
+        },
+      }
+);
+
+const senderEmail = process.env.SMTP_USER || process.env.EMAIL_USER || 'noreply@procfin.co.za';
 
 /**
  * Utility to send an SMS via BulkSMS.com REST API
@@ -103,23 +119,11 @@ exports.onUserVerified = onDocumentUpdated({
         const name = newValue.name || 'User';
 
         const mailOptions = {
-            from: '"ProcFin" <noreply@procfin.co.za>',
+            from: `"ProcFin" <${senderEmail}>`,
             to: email,
             subject: 'ProcFin - Profile Verified ✅',
-            text: `Hello ${name},\n\nGood news! Your profile has been successfully verified by a ProcFin admin.\n\nYou can now fully utilize the platform to matching with funders and requesting quotes.\n\nBest Regards,\nThe ProcFin Team`,
-            html: `
-          <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
-            <h2 style="color: #3b82f6;">Profile Verified! ✅</h2>
-            <p>Hello <strong>${name}</strong>,</p>
-            <p>Good news! Your profile has been successfully verified by a ProcFin admin.</p>
-            <p>You can now fully utilize the platform to match with funders and request quotes from our national database.</p>
-            <br/>
-            <a href="https://procfin.vercel.app" style="background:#3b82f6;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;">Go to Dashboard</a>
-            <br/><br/>
-            <p>Best Regards,</p>
-            <p><strong>The ProcFin Team</strong></p>
-          </div>
-        `
+            text: `Hello ${name},\n\nGood news! Your profile has been successfully verified by a ProcFin admin.\n\nYou can now fully utilize the platform to match with funders and request quotes.\n\nBest Regards,\nThe ProcFin Team`,
+            html: getVerificationTemplate(name)
         };
 
         try {
@@ -158,20 +162,10 @@ exports.onDealCreated = onDocumentCreated({
     const smeName = smeData.name || 'User';
 
     const mailOptions = {
-        from: '"ProcFin" <noreply@procfin.co.za>',
+        from: `"ProcFin" <${senderEmail}>`,
         to: [smeEmail, 'faceprint@icloud.com'], // Send to SME and test email
         subject: 'ProcFin - Funding Request Submitted 💰',
-        html: `
-          <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
-            <h2 style="color: #3b82f6;">Funding Request Received! 💰</h2>
-            <p>Hello <strong>${smeName}</strong>,</p>
-            <p>Your funding request of <strong>R${Number(deal.amount).toLocaleString()}</strong> for the category <strong>${deal.category}</strong> has been successfully submitted and is now being matched with verified funders.</p>
-            <p>We will notify you as soon as a funder starts reviewing your application.</p>
-            <br/>
-            <p>Best Regards,</p>
-            <p><strong>The ProcFin Team</strong></p>
-          </div>
-        `
+        html: getFundingSubmittedTemplate(smeName, deal.category, deal.amount)
     };
 
     try {
@@ -272,22 +266,10 @@ exports.onRfqAccepted = onDocumentUpdated({
         const amount = newValue.acceptedQuote?.amount || 0;
 
         const mailOptions = {
-            from: '"ProcFin" <noreply@procfin.co.za>',
+            from: `"ProcFin" <${senderEmail}>`,
             to: [smeEmail, 'faceprint@icloud.com'], // Send to SME and test email
             subject: 'ProcFin - Quote Accepted! 🤝',
-            html: `
-          <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
-            <h2 style="color: #10b981;">Quote Selection Confirmed! 🤝</h2>
-            <p>Hello <strong>${smeName}</strong>,</p>
-            <p>You have successfully accepted <strong>${supplierName}</strong>'s quote for <strong>R${Number(amount).toLocaleString()}</strong>.</p>
-            <p>You can now proceed to <strong>Phase 3: Deal Securitization</strong> in your dashboard to secure funding for this contract.</p>
-            <br/>
-            <a href="https://procfin.vercel.app" style="background:#10b981;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;">Proceed to Funding</a>
-            <br/><br/>
-            <p>Best Regards,</p>
-            <p><strong>The ProcFin Team</strong></p>
-          </div>
-        `
+            html: getRfqAcceptedTemplate(smeName, supplierName, amount)
         };
 
         try {
@@ -1434,5 +1416,78 @@ Output ONLY a valid JSON object matching this schema exactly:
     } catch (error) {
         console.error('Parse PO failed:', error);
         throw new HttpsError('internal', 'Error parsing PO: ' + error.message);
+    }
+});
+
+/**
+ * scheduledSyncTenders - Scheduled cron job running daily at 2:00 AM SAST (GMT+2)
+ * to pull the last 7 days of public tenders automatically from the Treasury OCDS API.
+ */
+exports.scheduledSyncTenders = onSchedule("0 2 * * *", async (event) => {
+    console.log("Starting scheduled sync of public tenders...");
+    try {
+        const today = new Date();
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(today.getDate() - 7);
+        const formatDate = (d) => d.toISOString().split('T')[0];
+
+        const dateFrom = formatDate(sevenDaysAgo);
+        const dateTo = formatDate(today);
+        const limit = 100;
+        const pagesToFetch = [1, 2, 3, 4, 5]; // 5 pages is plenty for a daily delta sync
+
+        console.log(`Scheduled sync window: ${dateFrom} to ${dateTo}`);
+        const fetchPromises = pagesToFetch.map(async (pageNum) => {
+            const apiUrl = `https://ocds-api.etenders.gov.za/api/OCDSReleases?PageNumber=${pageNum}&PageSize=${limit}&dateFrom=${dateFrom}&dateTo=${dateTo}`;
+            try {
+                const response = await axios.get(apiUrl, { timeout: 20000 });
+                return response.data?.releases || [];
+            } catch (err) {
+                console.error(`Scheduled sync error page ${pageNum}:`, err.message);
+                return [];
+            }
+        });
+
+        const allPageReleases = await Promise.all(fetchPromises);
+        let savedCount = 0;
+
+        for (const releases of allPageReleases) {
+            for (const release of releases) {
+                const tender = release.tender;
+                if (!tender) continue;
+
+                let rawCategory = tender.mainProcurementCategory || tender.category || "General Supplies";
+                let category = rawCategory;
+                if (category === "Stationery/Printing" || category === "Stationery") category = "Supplies: Stationery/Printing";
+                else if (category === "IT" || category === "Computers") category = "Supplies: Computer Equipment";
+                else if (category === "Clothing" || category === "Textiles") category = "Supplies: Clothing/Textiles/Footwear";
+                else if (category === "Medical Supplies") category = "Supplies: Medical";
+
+                const tenderData = {
+                    id: release.ocid || release.id || `tender_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                    title: tender.title || "Untitled Tender Opportunity",
+                    description: tender.description || release.description || "No description provided.",
+                    category: category,
+                    rawCategory: rawCategory,
+                    procuringEntity: tender.procuringEntity?.name || release.buyer?.name || "South African Government Institution",
+                    amount: tender.value?.amount || 0,
+                    currency: tender.value?.currency || "ZAR",
+                    startDate: tender.tenderPeriod?.startDate || release.date || new Date().toISOString(),
+                    endDate: tender.tenderPeriod?.endDate || new Date(Date.now() + 14*24*60*60*1000).toISOString(),
+                    contactPerson: {
+                        name: tender.contactPerson?.name || "Procurement Officer",
+                        email: tender.contactPerson?.email || "tenders@etenders.gov.za",
+                        phone: tender.contactPerson?.telephoneNumber || "N/A"
+                    },
+                    createdAt: new Date().toISOString()
+                };
+
+                await db.collection('tenders').doc(tenderData.id).set(tenderData, { merge: true });
+                savedCount++;
+            }
+        }
+        console.log(`Scheduled sync complete. Successfully synced ${savedCount} tenders.`);
+    } catch (error) {
+        console.error("Scheduled sync main routine failed:", error);
     }
 });
