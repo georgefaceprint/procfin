@@ -21,26 +21,27 @@ const CATEGORIES = CATEGORY_GROUPS.map(g => ({
 
 
 // ─── Badge Component ────────────────────────────────────────────────────────────
-function TrustBadge({ badge, size = 'sm' }) {
+function TrustBadge({ badge, score, grade, size = 'sm' }) {
     const base = size === 'lg' ? 'px-3 py-1.5 text-xs' : 'px-2 py-0.5 text-[10px]';
+    const scoreStr = score ? ` (${grade || 'E'}:${score}%)` : '';
     if (badge === 'Platinum') return (
         <span className={`${base} bg-gradient-to-r from-amber-500/15 to-yellow-500/10 text-amber-400 border border-amber-500/30 rounded-lg font-black uppercase tracking-widest flex items-center gap-1`}>
-            💎 Platinum
+            💎 Platinum{scoreStr}
         </span>
     );
     if (badge === 'Gold') return (
         <span className={`${base} bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 rounded-lg font-black uppercase tracking-widest flex items-center gap-1`}>
-            🥇 Gold
+            🥇 Gold{scoreStr}
         </span>
     );
     if (badge === 'Top Rated') return (
         <span className={`${base} bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded-lg font-black uppercase tracking-widest flex items-center gap-1`}>
-            ⭐ Top Rated
+            ⭐ Top Rated{scoreStr}
         </span>
     );
     return (
         <span className={`${base} bg-gray-800/80 text-gray-400 border border-gray-700/60 rounded-lg font-bold uppercase tracking-widest`}>
-            🥈 Silver
+            🥈 Silver{scoreStr}
         </span>
     );
 }
@@ -79,10 +80,13 @@ export default function SmeSourcing({ user, onBack, onNavigate }) {
         return onSnapshot(q, snap => {
             const data = snap.docs.map(d => {
                 const s = { id: d.id, ...d.data() };
-                let badge = 'Silver';
-                if (s.promoted) badge = 'Platinum';
-                else if (s.subscribed) badge = 'Gold';
-                else if (s.rating >= 4.5) badge = 'Top Rated';
+                let badge = s.trustBadge;
+                if (!badge) {
+                    if (s.promoted) badge = 'Platinum';
+                    else if (s.subscribed) badge = 'Gold';
+                    else if (s.rating >= 4.5) badge = 'Top Rated';
+                    else badge = 'Silver';
+                }
                 return { ...s, trustBadge: badge };
             });
             setSuppliers(data);
@@ -446,7 +450,7 @@ export default function SmeSourcing({ user, onBack, onNavigate }) {
                                             {sup.name?.[0]?.toUpperCase() || '?'}
                                         </div>
                                     )}
-                                    <TrustBadge badge={sup.trustBadge} />
+                                    <TrustBadge badge={sup.trustBadge} score={sup.readinessScore} grade={sup.readinessGrade} />
                                 </div>
 
                                 <h4 className="font-extrabold text-white text-base leading-tight truncate">{sup.name}</h4>
@@ -517,7 +521,7 @@ export default function SmeSourcing({ user, onBack, onNavigate }) {
                             <div>
                                 <div className="flex items-center gap-2 flex-wrap">
                                     <h2 className="text-xl font-black text-white">{sup.name}</h2>
-                                    <TrustBadge badge={sup.trustBadge} size="lg" />
+                                    <TrustBadge badge={sup.trustBadge} score={sup.readinessScore} grade={sup.readinessGrade} size="lg" />
                                 </div>
                                 <p className="text-xs text-gray-500 mt-1 flex items-center gap-3">
                                     <span className="flex items-center gap-1"><MapPin size={10} /> {[sup.suburb, sup.city, sup.province].filter(Boolean).join(', ') || 'South Africa'}</span>
@@ -857,7 +861,7 @@ export default function SmeSourcing({ user, onBack, onNavigate }) {
                                                         <h4 className="font-black text-white text-sm group-hover:text-blue-400 transition-colors">{s.name || s.companyName}</h4>
                                                         <p className="text-[10px] text-gray-500 flex items-center gap-1 mt-0.5"><MapPin size={9} />{s.province || 'South Africa'}</p>
                                                     </div>
-                                                    {s.trustBadge && <TrustBadge badge={s.trustBadge} />}
+                                                    {s.trustBadge && <TrustBadge badge={s.trustBadge} score={s.readinessScore} grade={s.readinessGrade} />}
                                                 </div>
                                                 <div className="flex flex-wrap gap-1">
                                                     {cats.slice(0, 3).map(c => (

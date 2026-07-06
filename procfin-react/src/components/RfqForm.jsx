@@ -9,6 +9,50 @@ import { doc, getDoc } from 'firebase/firestore';
 
 import { Sparkles, Search, Building2, Calendar, Clock, ArrowRight, Bot, Loader2 } from 'lucide-react';
 
+const TenderCard = React.memo(({ t, onSelect, onNavigate }) => {
+    const daysLeft = Math.ceil((new Date(t.endDate) - new Date()) / (1000 * 60 * 60 * 24));
+    return (
+        <div
+            onClick={() => onSelect(t)}
+            className="bg-[#121318] border border-gray-800/80 rounded-3xl p-6 hover:border-cyan-700/40 hover:bg-[#141820] transition-all flex flex-col md:flex-row justify-between items-start md:items-center gap-6 cursor-pointer group"
+        >
+            <div className="space-y-2 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                    <span className="px-2.5 py-0.5 bg-cyan-500/10 text-cyan-400 text-[10px] font-black rounded-full border border-cyan-500/20">{t.category}</span>
+                    {daysLeft > 0 ? (
+                        <span className="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-400 text-[10px] font-bold rounded-full border border-emerald-500/20 flex items-center gap-1">
+                            <Clock size={10} /> {daysLeft} days left
+                        </span>
+                    ) : (
+                        <span className="px-2.5 py-0.5 bg-red-500/10 text-red-400 text-[10px] font-bold rounded-full border border-red-500/20">Closed</span>
+                    )}
+                </div>
+                <h4 className="font-black text-white text-base leading-snug">{t.title}</h4>
+                <p className="text-xs text-gray-400 flex items-center gap-1.5"><Building2 size={11} className="text-cyan-500" />{t.procuringEntity}</p>
+                
+                <div className="flex gap-5 pt-2 text-[10px] text-gray-500 font-bold uppercase tracking-wider">
+                    <span className="flex items-center gap-1"><Calendar size={11} /> Closing: {new Date(t.endDate).toLocaleDateString()}</span>
+                    {t.amount > 0 && <span className="text-emerald-400 font-black">Value: R{t.amount.toLocaleString()}</span>}
+                </div>
+            </div>
+
+            <div className="flex flex-col gap-2 items-start md:items-end flex-shrink-0">
+                <button
+                    onClick={e => { e.stopPropagation(); onNavigate('funding-request', {
+                        clientName: t.procuringEntity,
+                        category: t.category,
+                        description: `Tender Bid Preparation: ${t.title}`
+                    }); }}
+                    className="w-full md:w-auto px-5 py-3.5 bg-cyan-500 hover:bg-cyan-600 text-black text-xs font-black rounded-xl shadow-lg shadow-cyan-500/10 flex items-center justify-center gap-1.5 transition-all whitespace-nowrap"
+                >
+                    PO Financing <ArrowRight size={13} />
+                </button>
+                <span className="text-[10px] text-gray-600 font-medium group-hover:text-gray-400 transition-colors">Click to view details →</span>
+            </div>
+        </div>
+    );
+});
+
 export default function RfqForm({ user, rfqCount, onBack, onNavigate }) {
     const planName = user.plan || 'Free';
     const [paywalls, setPaywalls] = useState({ smeFreeRfqLimit: 3, smeProRfqLimit: 10 });
@@ -309,50 +353,14 @@ export default function RfqForm({ user, rfqCount, onBack, onNavigate }) {
                                 </p>
                             </div>
                             
-                            {filteredTenders.map(t => {
-                                const daysLeft = Math.ceil((new Date(t.endDate) - new Date()) / (1000 * 60 * 60 * 24));
-                                return (
-                                    <div
-                                        key={t.id}
-                                        onClick={() => setSelectedTender(t)}
-                                        className="bg-[#121318] border border-gray-800/80 rounded-3xl p-6 hover:border-cyan-700/40 hover:bg-[#141820] transition-all flex flex-col md:flex-row justify-between items-start md:items-center gap-6 cursor-pointer group"
-                                    >
-                                        <div className="space-y-2 flex-1">
-                                            <div className="flex flex-wrap items-center gap-2">
-                                                <span className="px-2.5 py-0.5 bg-cyan-500/10 text-cyan-400 text-[10px] font-black rounded-full border border-cyan-500/20">{t.category}</span>
-                                                {daysLeft > 0 ? (
-                                                    <span className="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-400 text-[10px] font-bold rounded-full border border-emerald-500/20 flex items-center gap-1">
-                                                        <Clock size={10} /> {daysLeft} days left
-                                                    </span>
-                                                ) : (
-                                                    <span className="px-2.5 py-0.5 bg-red-500/10 text-red-400 text-[10px] font-bold rounded-full border border-red-500/20">Closed</span>
-                                                )}
-                                            </div>
-                                            <h4 className="font-black text-white text-base leading-snug">{t.title}</h4>
-                                            <p className="text-xs text-gray-400 flex items-center gap-1.5"><Building2 size={11} className="text-cyan-500" />{t.procuringEntity}</p>
-                                            
-                                            <div className="flex gap-5 pt-2 text-[10px] text-gray-500 font-bold uppercase tracking-wider">
-                                                <span className="flex items-center gap-1"><Calendar size={11} /> Closing: {new Date(t.endDate).toLocaleDateString()}</span>
-                                                {t.amount > 0 && <span className="text-emerald-400 font-black">Value: R{t.amount.toLocaleString()}</span>}
-                                            </div>
-                                        </div>
-
-                                        <div className="flex flex-col gap-2 items-start md:items-end flex-shrink-0">
-                                            <button
-                                                onClick={e => { e.stopPropagation(); onNavigate('funding-request', {
-                                                    clientName: t.procuringEntity,
-                                                    category: t.category,
-                                                    description: `Tender Bid Preparation: ${t.title}`
-                                                }); }}
-                                                className="w-full md:w-auto px-5 py-3.5 bg-cyan-500 hover:bg-cyan-600 text-black text-xs font-black rounded-xl shadow-lg shadow-cyan-500/10 flex items-center justify-center gap-1.5 transition-all whitespace-nowrap"
-                                            >
-                                                PO Financing <ArrowRight size={13} />
-                                            </button>
-                                            <span className="text-[10px] text-gray-600 font-medium group-hover:text-gray-400 transition-colors">Click to view details →</span>
-                                        </div>
-                                    </div>
-                                );
-                            })}
+                            {filteredTenders.map(t => (
+                                <TenderCard
+                                    key={t.id}
+                                    t={t}
+                                    onSelect={setSelectedTender}
+                                    onNavigate={onNavigate}
+                                />
+                            ))}
                         </div>
                     )}
                 </div>

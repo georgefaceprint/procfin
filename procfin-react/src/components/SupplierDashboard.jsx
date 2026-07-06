@@ -7,6 +7,7 @@ import SupplierAnalytics from './SupplierAnalytics';
 import SupplierStorefrontBuilder from './SupplierStorefrontBuilder';
 import ChatModule from './ChatModule';
 import { MessageCircle } from 'lucide-react';
+import { calculateSupplierScore } from '../utils/SupplierReadinessScore';
 
 export default function SupplierDashboard({ user, onNavigate, onUpdateUser }) {
     const [bidRequests, setBidRequests] = useState([]);
@@ -19,6 +20,10 @@ export default function SupplierDashboard({ user, onNavigate, onUpdateUser }) {
     const [activeTab, setActiveTab] = useState('analytics');
     const [activeChat, setActiveChat] = useState(null);
     const toast = useToast();
+
+    const [supplierDocs, setSupplierDocs] = useState({});
+    const [scoreCard, setScoreCard] = useState({ score: 0, grade: 'E', tier: 'Silver', checks: {} });
+    const [addingReference, setAddingReference] = useState('');
 
     const [paywalls, setPaywalls] = useState({
         supplierFreeQuoteLimit: 7,
@@ -96,6 +101,82 @@ export default function SupplierDashboard({ user, onNavigate, onUpdateUser }) {
             unsubDeals();
         };
     }, [user.id, user.industry, user.name]);
+
+    useEffect(() => {
+        if (!user.id) return;
+        const qDocs = query(collection(db, "user_documents"), where("uid", "==", user.id));
+        return onSnapshot(qDocs, (snap) => {
+            const docsMap = {};
+            snap.docs.forEach(d => {
+                const data = d.data();
+                if (data.docTypeId) {
+                    docsMap[data.docTypeId] = data;
+                }
+            });
+            setSupplierDocs(docsMap);
+        });
+    }, [user.id]);
+
+    useEffect(() => {
+        const card = calculateSupplierScore(user, supplierDocs);
+        setScoreCard(card);
+    }, [user, supplierDocs]);
+
+    useEffect(() => {
+        if (!user.id || !scoreCard.grade) return;
+        if (user.readinessScore !== scoreCard.score || user.readinessGrade !== scoreCard.grade || user.trustBadge !== scoreCard.tier) {
+            updateDoc(doc(db, "users", user.id), {
+                readinessScore: scoreCard.score,
+                readinessGrade: scoreCard.grade,
+                trustBadge: scoreCard.tier
+            }).catch(e => console.error("Error updating user score:", e));
+        }
+    }, [user.id, scoreCard, user.readinessScore, user.readinessGrade, user.trustBadge]);
+
+    const handleToggleBusinessModel = async (model) => {
+        try {
+            await updateDoc(doc(db, "users", user.id), {
+                businessModel: model
+            });
+            toast.success(`Business model updated to ${model}`);
+        } catch (e) {
+            toast.error("Failed to update business model.");
+        }
+    };
+
+    const handleAddReference = async () => {
+        if (!addingReference.trim()) return;
+        try {
+            const currentRefs = Array.isArray(user.tradeReferences) ? user.tradeReferences : [];
+            if (currentRefs.includes(addingReference.trim())) {
+                toast.warning("Reference already added.");
+                return;
+            }
+            const updatedRefs = [...currentRefs, addingReference.trim()];
+            await updateDoc(doc(db, "users", user.id), {
+                tradeReferences: updatedRefs,
+                tradeReferencesCount: updatedRefs.length
+            });
+            setAddingReference('');
+            toast.success("Trade reference added successfully!");
+        } catch (e) {
+            toast.error("Failed to add trade reference.");
+        }
+    };
+
+    const handleRemoveReference = async (refToRemove) => {
+        try {
+            const currentRefs = Array.isArray(user.tradeReferences) ? user.tradeReferences : [];
+            const updatedRefs = currentRefs.filter(r => r !== refToRemove);
+            await updateDoc(doc(db, "users", user.id), {
+                tradeReferences: updatedRefs,
+                tradeReferencesCount: updatedRefs.length
+            });
+            toast.success("Trade reference removed.");
+        } catch (e) {
+            toast.error("Failed to remove trade reference.");
+        }
+    };
 
     const handleSubmitQuote = async (deal) => {
         if (!quoteForm.amount || isNaN(Number(quoteForm.amount))) {
@@ -189,6 +270,177 @@ export default function SupplierDashboard({ user, onNavigate, onUpdateUser }) {
             </div>
 
             <div className="space-y-6">
+                    {/* Procurement Readiness Scorecard */}
+                    <div className="bg-[#121318] border border-gray-800/80 rounded-3xl p-8 shadow-sm">
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-center">
+                            
+                            {/* SVG Gauge & Tier Badge */}
+                            <div className="flex flex-col items-center justify-center text-center bg-gray-900/40 p-6 rounded-2xl border border-gray-800/50">
+                                <div className="relative w-32 h-32 flex items-center justify-center">
+                                    <svg className="w-full h-full transform -rotate-90">
+                                        {/* Background Circle */}
+                                        <circle
+                                            cx="64"
+                                            cy="64"
+                                            r="50"
+                                            className="stroke-gray-800"
+                                            strokeWidth="8"
+                                            fill="transparent"
+                                        />
+                                        {/* Foreground Circle */}
+                                        <circle
+                                            cx="64"
+                                            cy="64"
+                                            r="50"
+                                            className={`transition-all duration-1000 ease-out ${
+                                                scoreCard.tier === 'Platinum' ? 'stroke-cyan-500' :
+                                                scoreCard.tier === 'Gold' ? 'stroke-emerald-500' : 'stroke-amber-500'
+                                            }`}
+                                            strokeWidth="8"
+                                            fill="transparent"
+                                            strokeDasharray={2 * Math.PI * 50}
+                                            strokeDashoffset={(2 * Math.PI * 50) - (scoreCard.score / 100) * (2 * Math.PI * 50)}
+                                            strokeLinecap="round"
+                                        />
+                                    </svg>
+                                    <div className="absolute flex flex-col items-center">
+                                        <span className="text-3xl font-black text-white font-mono">{scoreCard.grade}</span>
+                                        <span className="text-xs text-gray-500 font-bold uppercase tracking-widest">{scoreCard.score}% PRS</span>
+                                    </div>
+                                </div>
+                                <div className="mt-4">
+                                    <span className={`inline-flex items-center gap-1.5 px-3 py-1 text-xs font-black uppercase tracking-widest rounded-lg border ${
+                                        scoreCard.tier === 'Platinum' ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' :
+                                        scoreCard.tier === 'Gold' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                                        'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                                    }`}>
+                                        ⭐ {scoreCard.tier} Tier Supplier
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Verification Metrics Checklist */}
+                            <div className="lg:col-span-2 space-y-4">
+                                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-2">
+                                    <div>
+                                        <h3 className="text-lg font-bold text-white">Procurement Readiness Scorecard</h3>
+                                        <p className="text-xs text-gray-500">Calculate eligibility for commercial & state contracts.</p>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => handleToggleBusinessModel('Government / Public Sector')}
+                                            className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-all ${
+                                                !scoreCard.isPrivate ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/25' : 'bg-transparent text-gray-400 border-gray-800'
+                                            }`}
+                                        >
+                                            🏛️ Government Vendor (CSD)
+                                        </button>
+                                        <button
+                                            onClick={() => handleToggleBusinessModel('Private B2B / Corporate')}
+                                            className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-all ${
+                                                scoreCard.isPrivate ? 'bg-purple-500/10 text-purple-400 border-purple-500/25' : 'bg-transparent text-gray-400 border-gray-800'
+                                            }`}
+                                        >
+                                            💼 Private Corporate
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                                    {/* CSD or references */}
+                                    {scoreCard.isPrivate ? (
+                                        <div className="flex items-center justify-between bg-gray-900/20 border border-gray-800/40 px-4 py-2.5 rounded-xl">
+                                            <span className="text-gray-400">🤝 Trade References (2 min)</span>
+                                            <span className={scoreCard.checks.references ? 'text-emerald-400 font-bold' : 'text-gray-500 font-bold'}>
+                                                {scoreCard.checks.references ? '✓ ' : ''}{user.tradeReferencesCount || 0}/2
+                                            </span>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center justify-between bg-gray-900/20 border border-gray-800/40 px-4 py-2.5 rounded-xl">
+                                            <span className="text-gray-400">🏛️ CSD Registered (+20)</span>
+                                            <span className={scoreCard.checks.csd ? 'text-emerald-400 font-bold' : 'text-gray-500 font-bold'}>
+                                                {scoreCard.checks.csd ? '✓ Active' : 'Missing'}
+                                            </span>
+                                        </div>
+                                    )}
+
+                                    {/* Tax PIN */}
+                                    <div className="flex items-center justify-between bg-gray-900/20 border border-gray-800/40 px-4 py-2.5 rounded-xl">
+                                        <span className="text-gray-400">💸 Tax Clearance Status (+20)</span>
+                                        <span className={scoreCard.checks.tax ? 'text-emerald-400 font-bold' : 'text-gray-500 font-bold'}>
+                                            {scoreCard.checks.tax ? '✓ Compliant' : 'Missing'}
+                                        </span>
+                                    </div>
+
+                                    {/* CIPC */}
+                                    <div className="flex items-center justify-between bg-gray-900/20 border border-gray-800/40 px-4 py-2.5 rounded-xl">
+                                        <span className="text-gray-400">🏢 CIPC Registered (+15)</span>
+                                        <span className={scoreCard.checks.cipc ? 'text-emerald-400 font-bold' : 'text-gray-500 font-bold'}>
+                                            {scoreCard.checks.cipc ? '✓ Active' : 'Missing'}
+                                        </span>
+                                    </div>
+
+                                    {/* Bank Confirm */}
+                                    <div className="flex items-center justify-between bg-gray-900/20 border border-gray-800/40 px-4 py-2.5 rounded-xl">
+                                        <span className="text-gray-400">🏦 Bank Confirmation (+15)</span>
+                                        <span className={scoreCard.checks.bank ? 'text-emerald-400 font-bold' : 'text-gray-500 font-bold'}>
+                                            {scoreCard.checks.bank ? '✓ Uploaded' : 'Missing'}
+                                        </span>
+                                    </div>
+
+                                    {/* BEE */}
+                                    <div className="flex items-center justify-between bg-gray-900/20 border border-gray-800/40 px-4 py-2.5 rounded-xl">
+                                        <span className="text-gray-400">⭐ B-BBEE Certificate (+10)</span>
+                                        <span className={scoreCard.checks.bee ? 'text-emerald-400 font-bold' : 'text-gray-500 font-bold'}>
+                                            {scoreCard.checks.bee ? '✓ Uploaded' : 'Missing'}
+                                        </span>
+                                    </div>
+
+                                    {/* Catalog count */}
+                                    <div className="flex items-center justify-between bg-gray-900/20 border border-gray-800/40 px-4 py-2.5 rounded-xl">
+                                        <span className="text-gray-400">🏪 Active Storefront (+10)</span>
+                                        <span className={scoreCard.checks.catalog ? 'text-emerald-400 font-bold' : 'text-gray-500 font-bold'}>
+                                            {scoreCard.checks.catalog ? '✓ Live' : `${Number(user.catalogCount) || 0}/3 Products`}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Private Trade Reference Manager */}
+                                {scoreCard.isPrivate && (
+                                    <div className="bg-purple-950/10 border border-purple-500/20 p-4 rounded-2xl space-y-3">
+                                        <h4 className="text-xs font-black uppercase text-purple-400 tracking-wider">Manage Corporate Trade References</h4>
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                value={addingReference}
+                                                onChange={e => setAddingReference(e.target.value)}
+                                                className="flex-1 bg-[#121318] border border-gray-800 rounded-xl px-3 py-1.5 text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"
+                                                placeholder="e.g. Acme Mining Ltd"
+                                            />
+                                            <button
+                                                onClick={handleAddReference}
+                                                className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-xl transition-colors whitespace-nowrap"
+                                            >
+                                                + Add
+                                            </button>
+                                        </div>
+                                        {Array.isArray(user.tradeReferences) && user.tradeReferences.length > 0 && (
+                                            <div className="flex flex-wrap gap-2 pt-1">
+                                                {user.tradeReferences.map((ref, idx) => (
+                                                    <span key={idx} className="inline-flex items-center gap-1 px-2.5 py-1 text-xs bg-gray-800 text-gray-200 rounded-lg border border-gray-700">
+                                                        {ref}
+                                                        <button onClick={() => handleRemoveReference(ref)} className="text-red-400 hover:text-red-300 font-bold ml-1">×</button>
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+
+                        </div>
+                    </div>
+
                     {/* Metrics Top Bar */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="bg-[#121318] border border-gray-800/80 rounded-3xl p-6 shadow-sm relative overflow-hidden group">

@@ -1178,24 +1178,25 @@ exports.syncTenders = onRequest(async (req, res) => {
     try {
         const limit = req.query.limit || 100;
 
-        // Calculate default dates (dateFrom: 90 days ago, dateTo: today)
+        // Calculate default dates (dateFrom: 365 days ago, dateTo: today)
         const today = new Date();
-        const ninetyDaysAgo = new Date();
-        ninetyDaysAgo.setDate(today.getDate() - 90);
+        const oneYearAgo = new Date();
+        oneYearAgo.setDate(today.getDate() - 365);
 
         const formatDate = (d) => d.toISOString().split('T')[0];
 
-        const dateFrom = req.query.dateFrom || formatDate(ninetyDaysAgo);
+        const dateFrom = req.query.dateFrom || formatDate(oneYearAgo);
         const dateTo = req.query.dateTo || formatDate(today);
 
         const tendersSaved = [];
-        const pagesToFetch = [1, 2, 3, 4, 5];
+        const pageCount = Number(req.query.pages) || 20;
+        const pagesToFetch = Array.from({ length: pageCount }, (_, i) => i + 1);
 
-        console.log(`Starting parallel fetch of eTenders OCDS pages 1-5 from ${dateFrom} to ${dateTo}`);
+        console.log(`Starting parallel fetch of eTenders OCDS pages 1-${pageCount} from ${dateFrom} to ${dateTo}`);
         const fetchPromises = pagesToFetch.map(async (pageNum) => {
             const apiUrl = `https://ocds-api.etenders.gov.za/api/OCDSReleases?PageNumber=${pageNum}&PageSize=${limit}&dateFrom=${dateFrom}&dateTo=${dateTo}`;
             try {
-                const response = await axios.get(apiUrl, { timeout: 15000 });
+                const response = await axios.get(apiUrl, { timeout: 20000 });
                 return response.data?.releases || [];
             } catch (err) {
                 console.error(`Error fetching page ${pageNum} from eTenders API:`, err.message);

@@ -24,6 +24,7 @@ const INDUSTRIES = [
 export default function Onboarding({ user, onComplete }) {
     const [step, setStep] = useState(1);
     const [formData, setFormData] = useState({
+        businessModel: 'Government / Public Sector',
         csdNumber: '',
         companyName: '',
         regNumber: '',
@@ -195,30 +196,50 @@ export default function Onboarding({ user, onComplete }) {
                             <>
                                 <div>
                                     <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                                        CSD Registration Number (Optional)
+                                        Target Business Model
                                     </label>
-                                    <div className="flex gap-2">
-                                        <input
-                                            type="text"
-                                            name="csdNumber"
-                                            value={formData.csdNumber}
-                                            onChange={handleChange}
-                                            className="flex-1 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all uppercase"
-                                            placeholder="e.g. MAAA0000000"
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={handleVerifyCsd}
-                                            disabled={!formData.csdNumber || isVerifying}
-                                            className="px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl disabled:opacity-50 transition-colors whitespace-nowrap"
-                                        >
-                                            {isVerifying ? 'Verifying...' : 'Verify & Autofill'}
-                                        </button>
-                                    </div>
-                                    <p className="text-xs text-gray-500 mt-2">
-                                        Not on CSD? That's fine! You can skip this and fill details manually to trade privately. To qualify for government contracts, you can register at the National Treasury CSD portal.
-                                    </p>
+                                    <select
+                                        name="businessModel"
+                                        value={formData.businessModel}
+                                        onChange={handleChange}
+                                        className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                                    >
+                                        <option value="Government / Public Sector">Government / Public Sector Vendor (CSD Path)</option>
+                                        <option value="Private B2B / Corporate">Private B2B / Corporate Supplier (Trade Reference Path)</option>
+                                    </select>
                                 </div>
+                                {formData.businessModel === 'Government / Public Sector' ? (
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                                            CSD Registration Number (Optional)
+                                        </label>
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                name="csdNumber"
+                                                value={formData.csdNumber}
+                                                onChange={handleChange}
+                                                className="flex-1 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all uppercase"
+                                                placeholder="e.g. MAAA0000000"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={handleVerifyCsd}
+                                                disabled={!formData.csdNumber || isVerifying}
+                                                className="px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl disabled:opacity-50 transition-colors whitespace-nowrap"
+                                            >
+                                                {isVerifying ? 'Verifying...' : 'Verify & Autofill'}
+                                            </button>
+                                        </div>
+                                        <p className="text-xs text-gray-500 mt-2">
+                                            Not on CSD? That's fine! You can skip this and fill details manually to trade privately. To qualify for government contracts, you can register at the National Treasury CSD portal.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/20 p-4 rounded-xl text-xs text-blue-700 dark:text-blue-400">
+                                        ℹ️ As a private B2B supplier, you do not need CSD registration. Your trust score will be calculated based on your corporate trade references instead.
+                                    </div>
+                                )}
                                 <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
                                     <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                                         {user.type === 'SUPPLIER' ? 'Registered Supplier Name' : 'Company Name'}
