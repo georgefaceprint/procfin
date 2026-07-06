@@ -161,7 +161,7 @@ export default function FundingRequest({ user, params, onBack }) {
             {/* How it works strip */}
             <div className="grid grid-cols-3 gap-3 mb-8">
                 {[
-                    { icon: '📋', step: '1', label: 'Submit your tender award + supplier quote' },
+                    { icon: '📋', step: '1', label: 'Submit your Awarded Purchase Order / Tender Award + Supplier Quote' },
                     { icon: '💰', step: '2', label: 'ProcFin pays the supplier from their warchest' },
                     { icon: '🏦', step: '3', label: 'Your client pays ProcFin. You receive your profit.' },
                 ].map(({ icon, step, label }) => (
@@ -292,14 +292,14 @@ export default function FundingRequest({ user, params, onBack }) {
                         </div>
                     </div>
 
-                    {/* Tender award doc */}
+                    {/* Awarded Purchase Order / Tender Award doc */}
                     <div>
-                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Tender Award Letter / Contract Document *</label>
+                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Awarded Purchase Order / Tender Award Letter *</label>
                         <label className="flex items-center gap-3 p-4 border-2 border-dashed border-gray-700 hover:border-cyan-500/50 rounded-xl cursor-pointer transition-all group">
                             <span className="text-2xl">📄</span>
                             <div className="flex-1">
                                 <p className="text-sm font-bold text-gray-300 group-hover:text-white transition-colors">
-                                    {formData.tenderAwardFile ? formData.tenderAwardFile.name : 'Upload Tender Award Letter'}
+                                    {formData.tenderAwardFile ? formData.tenderAwardFile.name : 'Upload Awarded Purchase Order / Tender Award Letter'}
                                 </p>
                                 <p className="text-xs text-gray-600">PDF, JPG, PNG — max 10MB</p>
                             </div>
@@ -436,7 +436,7 @@ export default function FundingRequest({ user, params, onBack }) {
                         <p><strong className="text-gray-300">1.</strong> I authorise ProcFin to embed themselves as the designated recipient of all payments from <strong className="text-white">{formData.clientName || '[Client Name]'}</strong> relating to this contract.</p>
                         <p><strong className="text-gray-300">2.</strong> I understand ProcFin will pay the supplier directly and that I will receive no cash until ProcFin has recovered their capital and fees.</p>
                         <p><strong className="text-gray-300">3.</strong> My profit ({smeProfit > 0 ? `≈ R${smeProfit.toLocaleString('en-ZA', { maximumFractionDigits: 0 })}` : 'as calculated'}) will be released to my nominated bank account upon contract settlement.</p>
-                        <p><strong className="text-gray-300">4.</strong> I confirm the tender award referenced above is genuine and has been awarded to my business.</p>
+                        <p><strong className="text-gray-300">4.</strong> I confirm the purchase order / tender award referenced above is genuine and has been awarded to my business.</p>
                     </div>
                     <label className="flex items-start gap-3 cursor-pointer group">
                         <input

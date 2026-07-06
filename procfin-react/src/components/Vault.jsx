@@ -6,12 +6,13 @@ import { useToast } from './Toast';
 import { ShieldCheck, Lock, CloudUpload, Trash2, Eye, AlertCircle, FileText, CheckCircle2, ChevronLeft, ShieldAlert, Cpu } from 'lucide-react';
 
 const FALLBACK_DOCS = [
-    { id: '1', name: 'CSD Registration Report', category: 'Compliance', description: 'Central Supplier Database summary report', requiredFor: ['SME', 'SUPPLIER'] },
-    { id: '2', name: 'Valid Tax Clearance', category: 'Compliance', description: 'SARS Tax Clearance Certificate with PIN', requiredFor: ['SME', 'SUPPLIER'] },
-    { id: '3', name: '6 Months Bank Statements', category: 'Financials', description: 'Recent bank statements for affordability assessment', requiredFor: ['SME'] },
-    { id: '4', name: 'Directors ID Copies', category: 'KYC', description: 'Certified copies of all active directors ID documents', requiredFor: ['SME', 'SUPPLIER'] },
-    { id: '5', name: 'BEE Certificate', category: 'Compliance', description: 'Broad-Based Black Economic Empowerment certificate / Affidavit', requiredFor: ['SME', 'SUPPLIER'] },
-    { id: '6', name: 'Company Registration (CIPC)', category: 'KYC', description: 'Official registration documents for the legal entity', requiredFor: ['SME', 'SUPPLIER'] }
+    { id: '1', key: 'csd',          name: 'CSD Registration Report', category: 'Compliance', description: 'Central Supplier Database summary report', requiredFor: ['SME', 'SUPPLIER'] },
+    { id: '2', key: 'tax',          name: 'Valid Tax Clearance', category: 'Compliance', description: 'SARS Tax Clearance Certificate with PIN', requiredFor: ['SME', 'SUPPLIER'] },
+    { id: '3', key: 'cipc',         name: 'Company Registration (CIPC)', category: 'KYC', description: 'Official registration documents for the legal entity', requiredFor: ['SME', 'SUPPLIER'] },
+    { id: '4', key: 'bank_confirm', name: 'Bank Confirmation Letter', category: 'Financials', description: 'Official letter from the bank confirming account details (not older than 3 months)', requiredFor: ['SME', 'SUPPLIER'] },
+    { id: '5', key: 'id',           name: 'Directors ID Copies', category: 'KYC', description: 'Certified copies of all active directors ID documents', requiredFor: ['SME', 'SUPPLIER'] },
+    { id: '6', key: 'address',      name: 'Proof of Address', category: 'KYC', description: 'Company or Directors proof of residential/business address (not older than 3 months)', requiredFor: ['SME', 'SUPPLIER'] },
+    { id: '7', key: 'bbbee',        name: 'B-BBEE Certificate', category: 'Compliance', description: 'Broad-Based Black Economic Empowerment certificate / Affidavit', requiredFor: ['SME', 'SUPPLIER'] }
 ];
 
 export default function Vault({ user, onBack }) {
@@ -72,9 +73,12 @@ export default function Vault({ user, onBack }) {
             },
             async () => {
                 const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                const docType = docTypes.find(d => String(d.id) === docIdStr);
                 const docData = {
                     uid: user.id,
                     docTypeId: docIdStr,
+                    type: docType ? docType.key : '',
+                    name: file.name,
                     url: downloadURL,
                     storagePath: storageRef.fullPath,
                     uploadedAt: new Date().toISOString()

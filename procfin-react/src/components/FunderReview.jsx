@@ -3,11 +3,13 @@ import { db } from '../firebase';
 import { doc, getDoc, collection, query, where, getDocs, setDoc } from 'firebase/firestore';
 
 const KYC_DOCS = [
-    { key: 'csd',        label: 'CSD Registration',       icon: '🏛️' },
-    { key: 'tax',        label: 'SARS Tax Clearance',      icon: '📋' },
-    { key: 'bbbee',      label: 'B-BBEE Certificate',      icon: '🤝' },
-    { key: 'financials', label: 'Management Accounts',     icon: '📊' },
-    { key: 'id',         label: 'Director ID / Passport',  icon: '🪪' },
+    { id: '1', label: 'CSD Registration Report',  icon: '🏛️' },
+    { id: '2', label: 'Valid Tax Clearance Certificate', icon: '📋' },
+    { id: '3', label: 'Company Registration (CIPC)',     icon: '🏢' },
+    { id: '4', label: 'Bank Confirmation Letter',  icon: '🏦' },
+    { id: '5', label: 'Directors ID Copies',       icon: '🪪' },
+    { id: '6', label: 'Proof of Address',          icon: '📍' },
+    { id: '7', label: 'B-BBEE Certificate',        icon: '🤝' },
 ];
 
 export default function FunderReview({ user, dealId, onBack, onApprove }) {
@@ -51,12 +53,12 @@ export default function FunderReview({ user, dealId, onBack, onApprove }) {
         })();
     }, [dealId]);
 
-    const getDoc_ = (type) => {
-        const f = smeDocs.find(d => d.type === type);
-        return f ? { status: 'uploaded', url: f.url, name: f.name } : { status: 'missing' };
+    const getDoc_ = (id) => {
+        const f = smeDocs.find(d => String(d.docTypeId) === String(id));
+        return f ? { status: 'uploaded', url: f.url, name: f.name || 'document' } : { status: 'missing' };
     };
 
-    const kycComplete = KYC_DOCS.filter(d => getDoc_(d.key).status === 'uploaded').length;
+    const kycComplete = KYC_DOCS.filter(d => getDoc_(d.id).status === 'uploaded').length;
     const kycPct = Math.round((kycComplete / KYC_DOCS.length) * 100);
 
     const handleBroadcast = async () => {
@@ -308,9 +310,9 @@ export default function FunderReview({ user, dealId, onBack, onApprove }) {
                     </div>
                     <div className="space-y-2">
                         {KYC_DOCS.map(dt => {
-                            const info = getDoc_(dt.key);
+                            const info = getDoc_(dt.id);
                             return (
-                                <div key={dt.key} className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${
+                                <div key={dt.id} className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${
                                     info.status === 'uploaded'
                                         ? 'bg-emerald-500/5 border-emerald-500/15'
                                         : 'bg-[#1a1c23]/40 border-gray-800/60'
