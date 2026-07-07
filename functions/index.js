@@ -1595,3 +1595,76 @@ exports.scheduledSyncTenders = onSchedule("0 2 * * *", async (event) => {
         console.error("Scheduled sync main routine failed:", error);
     }
 });
+
+exports.paystackWebhook = onRequest({ cors: true }, async (req, res) => {
+    const crypto = require('crypto');
+    const secret = process.env.PAYSTACK_SECRET_KEY || 'sk_test_06e71bc811aaf81e8d7a2cdd5dc12b65dc9b1827';
+    
+    // Verify signature
+    const signature = req.headers['x-paystack-signature'];
+    if (!signature) {
+        console.warn("Paystack Webhook: Missing signature header.");
+        return res.status(400).send("Missing signature");
+    }
+
+    const hash = crypto.createHmac('sha512', secret)
+        .update(JSON.stringify(req.body))
+        .digest('hex');
+
+    if (hash !== signature) {
+        console.warn("Paystack Webhook: Signature verification failed.");
+        return res.status(400).send("Invalid signature");
+    }
+
+    const event = req.body;
+    console.log("Paystack Webhook Event Received:", event.event);
+
+    if (event.event === 'charge.success') {
+        const data = event.data;
+        const reference = data.reference;
+        const metadata = data.metadata || {};
+        const customFields = metadata.custom_fields || [];
+        
+        const userIdField = customFields.find(f => f.variable_name === 'user_id');
+        const planKeyField = customFields.find(f => f.variable_name === 'plan_key');
+
+        const userId = userIdField?.value;
+        const planKey = planKeyField?.value;
+
+        if (userId && planKey) {
+            console.log(`Fulfilling purchase for User: ${userId}, Plan: ${planKey}, Reference: ${reference}`);
+            
+            // Map plan values
+            const planNames = {
+                SME_FREE: 'Free Starter Plan',
+                SME_PRO: 'SME Pro Plan',
+                SME_ENTERPRISE: 'SME Enterprise',
+                SUPPLIER_GOLD: 'Gold Supplier',
+                SUPPLIER_DIAMOND: 'Diamond Supplier',
+                SUPPLIER_PLATINUM: 'Platinum Supplier',
+                FUNDER: 'Funder Access Plan'
+            };
+
+            const planName = planNames[planKey] || planKey;
+            const isFeatured = planKey === 'SUPPLIER_DIAMOND' || planKey === 'SUPPLIER_PLATINUM';
+            const days = planKey === 'SUPPLIER_DIAMOND' ? 30 : 365;
+            const featuredUntil = isFeatured ? new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString() : null;
+
+            await db.collection('users').doc(userId).set({
+                subscribed: true,
+                featured: isFeatured,
+                promoted: isFeatured,
+                featuredUntil: featuredUntil,
+                plan: planName,
+                subscribedAt: new Date().toISOString(),
+                paystackReference: reference,
+            }, { merge: true });
+
+            console.log(`Successfully upgraded user ${userId} to ${planName}.`);
+        } else {
+            console.warn("Paystack Webhook: Missing userId or planKey in metadata.");
+        }
+    }
+
+    return res.status(200).send("Event processed");
+});
