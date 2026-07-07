@@ -175,8 +175,50 @@ function getRfqAcceptedTemplate(smeName, supplierName, amount) {
     );
 }
 
+/**
+ * Template for: New Matched RFQ Lead
+ */
+function getNewLeadTemplate(supplierName, smeName, category, amount, description) {
+    const body = `
+        <p>Hi <strong>${supplierName}</strong>,</p>
+        <p>Excellent news! A buyer has just broadcasted a new Request for Quote (RFQ) that matches your supplier profile and preferred categories.</p>
+        <div style="background-color: #1e293b; border-radius: 12px; padding: 20px; margin: 20px 0; border: 1px solid #334155;">
+            <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                <tr>
+                    <td style="color: #64748b; font-size: 12px; font-weight: bold; text-transform: uppercase; padding-bottom: 5px;">Buyer</td>
+                    <td style="color: #ffffff; font-weight: 700; text-align: right; padding-bottom: 5px;">${smeName}</td>
+                </tr>
+                <tr>
+                    <td style="color: #64748b; font-size: 12px; font-weight: bold; text-transform: uppercase; padding-bottom: 5px;">Category</td>
+                    <td style="color: #ffffff; font-weight: 700; text-align: right; padding-bottom: 5px;">${category}</td>
+                </tr>
+                ${amount ? `
+                <tr>
+                    <td style="color: #64748b; font-size: 12px; font-weight: bold; text-transform: uppercase; padding-bottom: 5px;">Estimated Budget</td>
+                    <td style="color: #10b981; font-weight: 900; text-align: right; font-size: 16px; padding-bottom: 5px;">R${Number(amount).toLocaleString()}</td>
+                </tr>
+                ` : ''}
+                <tr>
+                    <td style="color: #64748b; font-size: 12px; font-weight: bold; text-transform: uppercase; vertical-align: top;">Specifications</td>
+                    <td style="color: #ffffff; text-align: right; font-size: 13px; max-width: 300px; word-wrap: break-word;">${description}</td>
+                </tr>
+            </table>
+        </div>
+        <p>You can submit a formal quote directly through your dashboard. All bids are verified, and matching purchase orders are pre-funded or backed by ProcFin escrow.</p>
+    `;
+    return getEmailWrapper(
+        'New RFQ Match! 📋',
+        'New Matched Procurement Lead Available',
+        body,
+        'Submit Quote Now',
+        'https://procfin.online',
+        '#06b6d4'
+    );
+}
+
 module.exports = {
     getVerificationTemplate,
     getFundingSubmittedTemplate,
-    getRfqAcceptedTemplate
+    getRfqAcceptedTemplate,
+    getNewLeadTemplate
 };

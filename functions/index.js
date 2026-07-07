@@ -6,7 +6,7 @@ const { onRequest, onCall, HttpsError } = require("firebase-functions/v2/https")
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { GoogleGenAI } = require('@google/genai');
 
-const { getVerificationTemplate, getFundingSubmittedTemplate, getRfqAcceptedTemplate } = require('./emailTemplates');
+const { getVerificationTemplate, getFundingSubmittedTemplate, getRfqAcceptedTemplate, getNewLeadTemplate } = require('./emailTemplates');
 
 admin.initializeApp();
 const { getFirestore } = require('firebase-admin/firestore');
@@ -229,18 +229,93 @@ exports.onRfqCreated = onDocumentCreated({
     database: 'procfin'
 }, async (event) => {
     const rfq = event.data.data();
+    const rfqId = event.params.rfqId;
     const supplierId = rfq.supplierId;
+    const smeName = rfq.smeName || 'A business';
     
     if (supplierId) {
+        // Direct RFQ to a specific supplier
         const supplierSnap = await db.collection('users').doc(supplierId).get();
         if (supplierSnap.exists) {
             const supplierData = supplierSnap.data();
-            const smeName = rfq.smeName || 'A business';
             
+            // Send email
+            if (supplierData.email) {
+                const mailOptions = {
+                    from: `"ProcFin" <${senderEmail}>`,
+                    to: [supplierData.email, 'faceprint@icloud.com'],
+                    subject: 'ProcFin - New Direct RFQ Request 📋',
+                    html: getNewLeadTemplate(supplierData.name || 'Supplier', smeName, rfq.category || 'General', rfq.amount || 0, rfq.specs || rfq.description || 'No specifications provided.')
+                };
+                try {
+                    await mailTransport.sendMail(mailOptions);
+                } catch (e) {
+                    console.error("Failed to send direct RFQ email:", e);
+                }
+            }
+
             if (supplierData.whatsapp) {
                 await sendSMS(supplierData.whatsapp, `ProcFin: You have received a new Request for Quote (RFQ) from ${smeName}. Log in to procfin.online to review and submit your formal quote.`);
             }
             await sendPushToUser(supplierData, 'New RFQ Received! 📋', `You have received a new RFQ from ${smeName}.`);
+        }
+    } else {
+        // Broadcast RFQ -> Match with preferredCategories of ALL suppliers
+        const category = rfq.category;
+        if (!category) return null;
+
+        console.log(`Processing broadcast RFQ ${rfqId}. Matching for category: ${category}`);
+
+        const suppliersSnap = await db.collection('users')
+            .where('type', '==', 'SUPPLIER')
+            .get();
+
+        const matchPromises = [];
+
+        suppliersSnap.forEach(doc => {
+            const supplier = doc.data();
+            const preferredCats = supplier.preferredCategories || supplier.industry || [];
+            
+            // Perform case-insensitive category matching
+            const isMatch = preferredCats.some(cat => 
+                cat.toLowerCase().trim() === category.toLowerCase().trim()
+            );
+
+            if (isMatch) {
+                console.log(`Match found! Notifying supplier: ${supplier.name} (${supplier.email})`);
+                
+                // 1. Send Email
+                if (supplier.email) {
+                    const mailOptions = {
+                        from: `"ProcFin" <${senderEmail}>`,
+                        to: [supplier.email, 'faceprint@icloud.com'], // Send to supplier and test email
+                        subject: 'ProcFin - Match RFQ Opportunity! 🎯',
+                        html: getNewLeadTemplate(supplier.name || 'Supplier', smeName, category, rfq.amount || 0, rfq.specs || rfq.description || 'No specifications provided.')
+                    };
+                    matchPromises.push(
+                        mailTransport.sendMail(mailOptions)
+                            .catch(err => console.error(`Failed to email matched supplier ${supplier.email}:`, err))
+                    );
+                }
+
+                // 2. Send SMS
+                if (supplier.whatsapp) {
+                    matchPromises.push(
+                        sendSMS(supplier.whatsapp, `ProcFin: New matched procurement lead matching your profile from ${smeName} (Category: ${category}). Submit quote now on procfin.online.`)
+                            .catch(err => console.error(`Failed to SMS matched supplier ${supplier.whatsapp}:`, err))
+                    );
+                }
+
+                // 3. Send Push/In-App
+                matchPromises.push(
+                    sendPushToUser(supplier, 'New Matched Lead Opportunity! 🎯', `Submit your quote response to ${smeName}'s RFQ for ${category}.`)
+                        .catch(err => console.error(`Failed to send push to matched supplier ${doc.id}:`, err))
+                );
+            }
+        });
+
+        if (matchPromises.length > 0) {
+            await Promise.all(matchPromises);
         }
     }
     return null;
@@ -826,7 +901,14 @@ exports.seedSuppliers = onRequest(async (req, res) => {
             await db.collection('catalog_items').doc(p.id).set(p);
         }
 
-        res.status(200).send("Seeded 18 suppliers and " + allProducts.length + " products successfully!");
+        // Set Paystack API keys dynamically from environment variables
+        const paystackPub = process.env.PAYSTACK_PUBLIC_KEY || 'pk_test_f449c076e0ce64949620f520d9071c0c1e42e1bb';
+        await db.collection('settings').doc('payments').set({
+            publicKey: paystackPub,
+            updatedAt: new Date().toISOString()
+        }, { merge: true });
+
+        res.status(200).send("Seeded 18 suppliers, " + allProducts.length + " products, and Paystack settings successfully!");
     } catch (err) {
         console.error("Seeding Error:", err);
         res.status(500).send("Error seeding suppliers: " + err.message);
