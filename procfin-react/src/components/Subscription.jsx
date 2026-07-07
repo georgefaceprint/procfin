@@ -133,6 +133,20 @@ export default function Subscription({ user, onBack, onSuccess }) {
             amount: plan.price * 100, // in cents/kobo
             currency: 'ZAR', // Paystack supports ZAR for South African businesses
             ref: 'procfin_' + Math.floor(Math.random() * 1000000000 + 1),
+            metadata: {
+                custom_fields: [
+                    {
+                        display_name: "User ID",
+                        variable_name: "user_id",
+                        value: user.uid || user.id
+                    },
+                    {
+                        display_name: "Plan Key",
+                        variable_name: "plan_key",
+                        value: selectedPlanKey
+                    }
+                ]
+            },
             callback: async (response) => {
                 if (response.status === 'success') {
                     try {
