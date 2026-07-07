@@ -1144,6 +1144,25 @@ exports.onNotificationAdded = onDocumentCreated("user_notifications/{userId}", a
 });
 
 /**
+ * Helper to detect South African province from tender details.
+ */
+function detectProvince(title, description, procuringEntity) {
+    const text = `${title} ${description} ${procuringEntity}`.toLowerCase();
+    
+    if (text.includes('gauteng') || text.includes('johannesburg') || text.includes('pretoria') || text.includes('tshwane') || text.includes('ekurhuleni') || text.includes('midrand') || text.includes('randburg') || text.includes('soweto')) return 'Gauteng';
+    if (text.includes('western cape') || text.includes('cape town') || text.includes('stellenbosch') || text.includes('george') || text.includes('knysna') || text.includes('drakenstein')) return 'Western Cape';
+    if (text.includes('kwazulu-natal') || text.includes('kzn') || text.includes('durban') || text.includes('ethekwini') || text.includes('pietermaritzburg')) return 'KwaZulu-Natal';
+    if (text.includes('eastern cape') || text.includes('gqeberha') || text.includes('port elizabeth') || text.includes('east london') || text.includes('buffalo city')) return 'Eastern Cape';
+    if (text.includes('free state') || text.includes('bloemfontein') || text.includes('mangaung') || text.includes('welkom')) return 'Free State';
+    if (text.includes('limpopo') || text.includes('polokwane')) return 'Limpopo';
+    if (text.includes('mpumalanga') || text.includes('nelspruit') || text.includes('mbombela') || text.includes('witbank') || text.includes('emalahleni')) return 'Mpumalanga';
+    if (text.includes('northern cape') || text.includes('kimberley')) return 'Northern Cape';
+    if (text.includes('north west') || text.includes('rustenburg') || text.includes('mafikeng') || text.includes('potchefstroom')) return 'North West';
+    
+    return 'National';
+}
+
+/**
  * syncTenders - Fetch live public sector tenders from the National Treasury OCDS API
  * and sync them to Firestore for matching and display.
  */
@@ -1203,13 +1222,16 @@ exports.syncTenders = onRequest(async (req, res) => {
                 else if (category === "Clothing" || category === "Textiles") category = "Supplies: Clothing/Textiles/Footwear";
                 else if (category === "Medical Supplies") category = "Supplies: Medical";
 
+                const entityName = tender.procuringEntity?.name || release.buyer?.name || "South African Government Institution";
+
                 const tenderData = {
                     id: release.ocid || release.id || `tender_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
                     title: tender.title || "Untitled Tender Opportunity",
                     description: tender.description || release.description || "No description provided.",
                     category: category,
                     rawCategory: rawCategory,
-                    procuringEntity: tender.procuringEntity?.name || release.buyer?.name || "South African Government Institution",
+                    procuringEntity: entityName,
+                    province: detectProvince(tender.title || "", tender.description || "", entityName),
                     amount: tender.value?.amount || 0,
                     currency: tender.value?.currency || "ZAR",
                     startDate: tender.tenderPeriod?.startDate || release.date || new Date().toISOString(),
