@@ -5,6 +5,7 @@ import { useToast } from './Toast';
 import SupplierCatalog from './SupplierCatalog';
 import SupplierAnalytics from './SupplierAnalytics';
 import SupplierStorefrontBuilder from './SupplierStorefrontBuilder';
+import SupplierBranding from './SupplierBranding';
 import ChatModule from './ChatModule';
 import { MessageCircle } from 'lucide-react';
 import { calculateSupplierScore } from '../utils/SupplierReadinessScore';
@@ -488,12 +489,20 @@ export default function SupplierDashboard({ user, onNavigate, onUpdateUser }) {
                         >
                             🏪 My Storefront
                         </button>
+                        <button
+                            onClick={() => setActiveTab('branding')}
+                            className={`px-6 py-3 font-bold text-sm border-b-2 transition-all ${activeTab === 'branding' ? 'border-blue-500 text-blue-400 font-extrabold' : 'border-transparent text-gray-400 hover:text-white'}`}
+                        >
+                            🎨 Branding & Invoice
+                        </button>
                     </div>
 
                     {activeTab === 'analytics' ? (
                         <SupplierAnalytics user={user} myQuotes={myQuotes} activeDeals={activeDeals} bidRequests={bidRequests} />
                     ) : activeTab === 'storefront' ? (
                         <SupplierStorefrontBuilder user={user} onUpdateUser={onUpdateUser} />
+                    ) : activeTab === 'branding' ? (
+                        <SupplierBranding user={user} onUpdateUser={onUpdateUser} />
                     ) : activeTab === 'catalog' ? (
                         <SupplierCatalog user={user} onUpdateUser={onUpdateUser} onNavigate={onNavigate} />
                     ) : activeTab === 'myquotes' ? (

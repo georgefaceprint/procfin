@@ -15,7 +15,27 @@ export default function SmeDashboard({ user, onNavigate }) {
     const [acceptingQuote, setAcceptingQuote] = useState(null); // supplierId being accepted
     const [showAcceptModal, setShowAcceptModal] = useState(false);
     const [activeChat, setActiveChat] = useState(null);
+    const [viewingInvoice, setViewingInvoice] = useState(null);
+    const [loadingInvoice, setLoadingInvoice] = useState(false);
     const toast = useToast();
+
+    const handleViewInvoice = async (supplierId, quote) => {
+        setLoadingInvoice(true);
+        try {
+            const supplierSnap = await getDoc(doc(db, 'users', supplierId));
+            const supplierData = supplierSnap.exists() ? supplierSnap.data() : {};
+            setViewingInvoice({
+                supplier: supplierData,
+                quote: quote,
+                rfq: reviewingRfq
+            });
+        } catch (err) {
+            console.error("Failed to load invoice:", err);
+            toast.error("Failed to load branded invoice.");
+        } finally {
+            setLoadingInvoice(false);
+        }
+    };
 
     useEffect(() => {
         if (!user.id) return;
@@ -229,19 +249,28 @@ export default function SmeDashboard({ user, onNavigate }) {
                                     <p className="text-[10px] text-emerald-600/70 dark:text-emerald-500/70 font-bold uppercase tracking-tighter">Ready to secure capital for this contract?</p>
                                 </div>
                             </div>
-                            <button
-                                onClick={() => {
-                                    setReviewingRfq(null);
-                                    onNavigate('funding-request', {
-                                        amount: acceptedQuote?.amount,
-                                        category: reviewingRfq.category,
-                                        description: `Funding for ${reviewingRfq.title} with ${acceptedQuote?.supplierName}.`
-                                    });
-                                }}
-                                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20 transition-all active:scale-95"
-                            >
-                                Apply for Funding →
-                            </button>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => handleViewInvoice(acceptedQuote.supplierId, acceptedQuote)}
+                                    disabled={loadingInvoice}
+                                    className="px-4 py-2 bg-[#121318] hover:bg-gray-800 border border-gray-800 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                                >
+                                    {loadingInvoice ? 'Loading...' : '📄 Branded Invoice'}
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setReviewingRfq(null);
+                                        onNavigate('funding-request', {
+                                            amount: acceptedQuote?.amount,
+                                            category: reviewingRfq.category,
+                                            description: `Funding for ${reviewingRfq.title} with ${acceptedQuote?.supplierName}.`
+                                        });
+                                    }}
+                                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20 transition-all active:scale-95"
+                                >
+                                    Apply for Funding →
+                                </button>
+                            </div>
                         </div>
                     )}
 
@@ -528,6 +557,125 @@ export default function SmeDashboard({ user, onNavigate }) {
                     onClose={() => setActiveChat(null)}
                 />
             )}
+
+            {renderInvoiceModal()}
         </div>
     );
+
+    function renderInvoiceModal() {
+        if (!viewingInvoice) return null;
+        const { supplier, quote, rfq } = viewingInvoice;
+        const brand = supplier.branding || {
+            logoUrl: '',
+            primaryColor: '#0ea5e9',
+            billingTerms: 'Payment is due within 14 days of PO delivery.',
+            bankDetails: {}
+        };
+
+        return (
+            <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center z-[70] px-4 md:px-6 overflow-y-auto py-10 print:bg-white print:p-0">
+                <div className="absolute inset-0 print:hidden" onClick={() => setViewingInvoice(null)} />
+                <div className="relative bg-white text-gray-900 border border-gray-200 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden font-sans p-8 print:p-0 print:border-none print:shadow-none print:w-full print:max-w-none print:relative print:left-0 print:top-0 animate-scale-in">
+                    
+                    {/* Brand line border */}
+                    <div style={{ backgroundColor: brand.primaryColor || '#0ea5e9', height: '8px', position: 'absolute', top: 0, left: 0, right: 0 }} className="print:hidden"></div>
+
+                    {/* Close & Print Row */}
+                    <div className="flex justify-between items-center mb-6 print:hidden">
+                        <button
+                            onClick={() => window.print()}
+                            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold transition-all"
+                        >
+                            🖨️ Print / Save PDF
+                        </button>
+                        <button
+                            onClick={() => setViewingInvoice(null)}
+                            className="w-8 h-8 flex items-center justify-center rounded-xl bg-gray-100 text-gray-500 hover:bg-gray-200 text-base"
+                        >
+                            ×
+                        </button>
+                    </div>
+
+                    {/* Invoice Body */}
+                    <div className="flex justify-between items-start border-b border-gray-200 pb-6">
+                        <div>
+                            {brand.logoUrl ? (
+                                <img src={brand.logoUrl} alt="Logo" className="max-h-12 max-w-[140px] object-contain mb-3" />
+                            ) : (
+                                <div className="text-xl font-black tracking-tight mb-2" style={{ color: brand.primaryColor || '#0ea5e9' }}>
+                                    {supplier.companyName || supplier.name || 'Supplier'}
+                                </div>
+                            )}
+                            <p className="text-[10px] text-gray-400 uppercase tracking-wider">TAX INVOICE</p>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-xs text-gray-500 font-bold">INVOICE #INV-{rfq.id.substring(0, 6).toUpperCase()}</p>
+                            <p className="text-[10px] text-gray-400 mt-1">Date: {new Date(quote.submittedAt || rfq.createdAt).toLocaleDateString('en-ZA')}</p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 py-6 border-b border-gray-100 text-xs">
+                        <div>
+                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-wide mb-1">Billed To</p>
+                            <p className="font-bold">{user.companyName || user.name || 'SME Buyer'}</p>
+                            <p className="text-gray-500">{user.city || 'Gauteng'}, South Africa</p>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-wide mb-1">From</p>
+                            <p className="font-bold">{supplier.companyName || supplier.name || 'Supplier'}</p>
+                            <p className="text-gray-500">{supplier.city || 'Johannesburg'}, {supplier.province || 'Gauteng'}</p>
+                        </div>
+                    </div>
+
+                    <div className="py-6 border-b border-gray-100 text-xs">
+                        <table className="w-full">
+                            <thead>
+                                <tr className="border-b border-gray-200 text-left text-gray-400 font-bold">
+                                    <th className="pb-2">Item Description</th>
+                                    <th className="pb-2 text-right">Qty</th>
+                                    <th className="pb-2 text-right">Price</th>
+                                    <th className="pb-2 text-right">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr className="border-b border-gray-50">
+                                    <td className="py-3 font-medium">{rfq.title}</td>
+                                    <td className="py-3 text-right text-gray-500">1</td>
+                                    <td className="py-3 text-right text-gray-500">R{Number(quote.amount).toLocaleString()}</td>
+                                    <td className="py-3 text-right font-bold">R{Number(quote.amount).toLocaleString()}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div className="grid grid-cols-5 gap-4 pt-6 text-xs">
+                        <div className="col-span-3 space-y-3">
+                            <div>
+                                <p className="text-[8px] font-black text-gray-400 uppercase tracking-wide mb-1">Direct Bank Transfer</p>
+                                <div className="bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-[10px] leading-relaxed text-gray-600 font-mono">
+                                    <p><strong>Bank:</strong> {brand.bankDetails?.bankName || '-----'}</p>
+                                    <p><strong>Acc Holder:</strong> {brand.bankDetails?.accountHolder || '-----'}</p>
+                                    <p><strong>Acc No:</strong> {brand.bankDetails?.accountNumber || '-----'}</p>
+                                    <p><strong>Branch:</strong> {brand.bankDetails?.branchCode || '-----'}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="col-span-2 text-right space-y-1 mt-auto">
+                            <p className="text-gray-400 font-medium">Subtotal: R{Number(quote.amount).toLocaleString()}</p>
+                            <p className="text-[10px] text-gray-400">VAT (0%): R0</p>
+                            <div className="pt-2 border-t border-gray-100">
+                                <p className="text-base font-black" style={{ color: brand.primaryColor || '#0ea5e9' }}>
+                                    Total: R{Number(quote.amount).toLocaleString()}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="mt-8 border-t border-gray-100 pt-4 text-[9px] text-gray-400 italic">
+                        <p><strong>Terms:</strong> {brand.billingTerms || 'No special terms.'}</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 }
