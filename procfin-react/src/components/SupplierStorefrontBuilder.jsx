@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import { Store, Image as ImageIcon, Settings, Save, MapPin, Globe, Phone } from 'lucide-react';
-import { db } from '../firebase';
+import { db, storage } from '../firebase';
 import { doc, updateDoc } from 'firebase/firestore';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { useToast } from './Toast';
 
 export default function SupplierStorefrontBuilder({ user, onUpdateUser }) {
     const toast = useToast();
     const [saving, setSaving] = useState(false);
+    const [uploading, setUploading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
     const [storeData, setStoreData] = useState({
         storeDescription: user.storefront?.description || '',
         bannerUrl: user.storefront?.bannerUrl || '',
@@ -16,6 +19,37 @@ export default function SupplierStorefrontBuilder({ user, onUpdateUser }) {
     });
 
     const isPremium = user.subscribed || user.promoted;
+
+    const handleBannerUpload = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setUploading(true);
+        setUploadProgress(0);
+
+        const ext = file.name.split('.').pop();
+        const filename = `banner_${user.uid || user.id}_${Date.now()}.${ext}`;
+        const storageRef = ref(storage, `storefronts/${filename}`);
+        const uploadTask = uploadBytesResumable(storageRef, file);
+
+        uploadTask.on('state_changed', 
+            (snapshot) => {
+                const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                setUploadProgress(Math.round(progress));
+            }, 
+            (error) => {
+                console.error("Banner upload error:", error);
+                toast.error("Failed to upload image. Please try again.");
+                setUploading(false);
+            }, 
+            async () => {
+                const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
+                setStoreData(prev => ({ ...prev, bannerUrl: downloadUrl }));
+                setUploading(false);
+                toast.success("Banner image uploaded successfully!");
+            }
+        );
+    };
 
     const handleSave = async () => {
         setSaving(true);
@@ -90,16 +124,34 @@ export default function SupplierStorefrontBuilder({ user, onUpdateUser }) {
 
                 <div className="space-y-5">
                     <div>
-                        <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-2">Banner Image URL</label>
-                        <div className="flex bg-[#1a1c23] border border-gray-700 rounded-xl overflow-hidden focus-within:border-cyan-500 transition-colors">
-                            <span className="px-4 py-3 text-gray-500"><ImageIcon size={16}/></span>
-                            <input 
-                                type="text" 
-                                value={storeData.bannerUrl}
-                                onChange={e => setStoreData({...storeData, bannerUrl: e.target.value})}
-                                placeholder="https://example.com/banner.jpg"
-                                className="w-full bg-transparent text-white text-sm outline-none pr-4"
-                            />
+                        <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-2">Banner Image</label>
+                        <div className="flex flex-col sm:flex-row gap-4 items-center bg-[#1a1c23] border border-gray-700 rounded-xl p-4">
+                            <div className="flex-1 w-full">
+                                <input 
+                                    type="file" 
+                                    accept="image/*"
+                                    onChange={handleBannerUpload}
+                                    disabled={uploading}
+                                    className="block w-full text-xs text-gray-400 file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-black file:bg-gray-800 file:text-white hover:file:bg-gray-750 cursor-pointer disabled:opacity-50"
+                                />
+                                {uploading && (
+                                    <div className="w-full bg-gray-800 rounded-full h-1.5 mt-3 overflow-hidden">
+                                        <div 
+                                            className="bg-cyan-500 h-1.5 transition-all duration-300" 
+                                            style={{ width: `${uploadProgress}%` }}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                            {storeData.bannerUrl && (
+                                <button 
+                                    type="button"
+                                    onClick={() => setStoreData({ ...storeData, bannerUrl: '' })}
+                                    className="px-3 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-[10px] font-black rounded-lg uppercase tracking-wider transition-all"
+                                >
+                                    Remove Banner
+                                </button>
+                            )}
                         </div>
                     </div>
 

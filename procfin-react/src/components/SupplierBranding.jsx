@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { db } from '../firebase';
+import { db, storage } from '../firebase';
 import { doc, updateDoc } from 'firebase/firestore';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { Sparkles, Palette, FileText, Landmark, Check } from 'lucide-react';
 
 export default function SupplierBranding({ user, onUpdateUser }) {
@@ -19,6 +20,38 @@ export default function SupplierBranding({ user, onUpdateUser }) {
     const [branding, setBranding] = useState(user.branding || defaultBranding);
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
+    const [uploading, setUploading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
+
+    const handleLogoUpload = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setUploading(true);
+        setUploadProgress(0);
+
+        const ext = file.name.split('.').pop();
+        const filename = `logo_${user.uid || user.id}_${Date.now()}.${ext}`;
+        const storageRef = ref(storage, `logos/${filename}`);
+        const uploadTask = uploadBytesResumable(storageRef, file);
+
+        uploadTask.on('state_changed', 
+            (snapshot) => {
+                const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                setUploadProgress(Math.round(progress));
+            }, 
+            (error) => {
+                console.error("Logo upload error:", error);
+                alert("Failed to upload logo image. Please try again.");
+                setUploading(false);
+            }, 
+            async () => {
+                const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
+                setBranding(prev => ({ ...prev, logoUrl: downloadUrl }));
+                setUploading(false);
+            }
+        );
+    };
 
     const handleSave = async (e) => {
         e.preventDefault();
@@ -71,15 +104,34 @@ export default function SupplierBranding({ user, onUpdateUser }) {
                     </h4>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="form-group">
-                            <label className="text-[11px] font-black text-gray-400 uppercase mb-1.5">Supplier Logo URL</label>
-                            <input
-                                type="url"
-                                placeholder="https://example.com/logo.png"
-                                value={branding.logoUrl || ''}
-                                onChange={e => setBranding(prev => ({ ...prev, logoUrl: e.target.value }))}
-                                className="form-control text-xs"
-                            />
+                        <div className="form-group flex flex-col justify-end">
+                            <label className="text-[11px] font-black text-gray-400 uppercase mb-1.5">Supplier Brand Logo</label>
+                            <div className="flex gap-2 items-center">
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleLogoUpload}
+                                    disabled={uploading}
+                                    className="block w-full text-xs text-gray-400 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-black file:bg-gray-800 file:text-white hover:file:bg-gray-700 cursor-pointer disabled:opacity-50"
+                                />
+                                {branding.logoUrl && (
+                                    <button 
+                                        type="button"
+                                        onClick={() => setBranding(prev => ({ ...prev, logoUrl: '' }))}
+                                        className="px-2.5 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-[9px] font-black rounded-lg uppercase transition-all"
+                                    >
+                                        Remove
+                                    </button>
+                                )}
+                            </div>
+                            {uploading && (
+                                <div className="w-full bg-gray-800 rounded-full h-1 mt-2 overflow-hidden">
+                                    <div 
+                                        className="bg-cyan-500 h-1 transition-all duration-300" 
+                                        style={{ width: `${uploadProgress}%` }}
+                                    />
+                                </div>
+                            )}
                         </div>
                         <div className="form-group">
                             <label className="text-[11px] font-black text-gray-400 uppercase mb-1.5">Primary Brand Color</label>

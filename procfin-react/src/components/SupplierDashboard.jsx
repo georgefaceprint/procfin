@@ -490,6 +490,12 @@ export default function SupplierDashboard({ user, onNavigate, onUpdateUser }) {
                             🏪 My Storefront
                         </button>
                         <button
+                            onClick={() => setActiveTab('catalog')}
+                            className={`px-6 py-3 font-bold text-sm border-b-2 transition-all ${activeTab === 'catalog' ? 'border-cyan-500 text-cyan-400 font-extrabold' : 'border-transparent text-gray-400 hover:text-white'}`}
+                        >
+                            📦 Product Inventory
+                        </button>
+                        <button
                             onClick={() => setActiveTab('branding')}
                             className={`px-6 py-3 font-bold text-sm border-b-2 transition-all ${activeTab === 'branding' ? 'border-blue-500 text-blue-400 font-extrabold' : 'border-transparent text-gray-400 hover:text-white'}`}
                         >
