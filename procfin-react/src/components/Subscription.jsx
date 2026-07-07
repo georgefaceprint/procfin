@@ -114,10 +114,10 @@ export default function Subscription({ user, onBack, onSuccess }) {
                     setPaystackConfig(docSnap.data());
                 } else {
                     // Fallback test key for Paystack
-                    setPaystackConfig({ publicKey: 'pk_test_a0cc75b7b9ef8ff902511488c962b92ba09756b1' });
+                    setPaystackConfig({ publicKey: 'pk_test_f449c076e0ce64949620f520d9071c0c1e42e1bb' });
                 }
             } catch (_) {
-                setPaystackConfig({ publicKey: 'pk_test_a0cc75b7b9ef8ff902511488c962b92ba09756b1' });
+                setPaystackConfig({ publicKey: 'pk_test_f449c076e0ce64949620f520d9071c0c1e42e1bb' });
             }
         };
         fetchConfig();
