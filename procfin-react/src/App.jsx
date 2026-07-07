@@ -253,7 +253,7 @@ export default function App() {
   }
 
   return (
-    <div className="w-full min-h-screen font-sans">
+    <div className="w-full min-h-screen bg-[#0b0c10] text-[#e2e8f0] font-sans">
       {currentView !== 'home' && currentView !== 'dashboard' && currentView !== 'onboarding' && (
         <div className="bg-[#0b0c10]/95 backdrop-blur-md sticky top-0 z-40 border-b border-gray-800/80 px-6 py-3.5 flex items-center justify-between print:hidden">
           <div className="flex items-center gap-3">
