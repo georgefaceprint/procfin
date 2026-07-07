@@ -19,6 +19,11 @@ const TenderCard = React.memo(({ t, onSelect, onNavigate }) => {
             <div className="space-y-2 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                     <span className="px-2.5 py-0.5 bg-cyan-500/10 text-cyan-400 text-[10px] font-black rounded-full border border-cyan-500/20">{t.category}</span>
+                    {t.province && (
+                        <span className="px-2.5 py-0.5 bg-blue-500/10 text-blue-400 text-[10px] font-black rounded-full border border-blue-500/20">
+                            📍 {t.province}
+                        </span>
+                    )}
                     {daysLeft > 0 ? (
                         <span className="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-400 text-[10px] font-bold rounded-full border border-emerald-500/20 flex items-center gap-1">
                             <Clock size={10} /> {daysLeft} days left
@@ -65,6 +70,7 @@ export default function RfqForm({ user, rfqCount, onBack, onNavigate }) {
     const [tenderSearch, setTenderSearch] = useState('');
     const [loadingTenders, setLoadingTenders] = useState(false);
     const [categoryFilter, setCategoryFilter] = useState('');
+    const [provinceFilter, setProvinceFilter] = useState('');
     const [dateRange, setDateRange] = useState(30); // days
     const [showOpenOnly, setShowOpenOnly] = useState(false);
     const [selectedTender, setSelectedTender] = useState(null);
@@ -232,14 +238,16 @@ export default function RfqForm({ user, rfqCount, onBack, onNavigate }) {
             (t.description || '').toLowerCase().includes(q)
         );
         const matchesCategory = !categoryFilter || (t.category || '').toLowerCase().includes(categoryFilter.toLowerCase());
+        const matchesProvince = !provinceFilter || (t.province || '').toLowerCase() === provinceFilter.toLowerCase();
         const publishedDate = t.startDate ? new Date(t.startDate) : new Date(t.createdAt);
         const matchesDate = publishedDate >= cutoffDate;
         const daysLeft = Math.ceil((new Date(t.endDate) - new Date()) / (1000 * 60 * 60 * 24));
         const matchesStatus = !showOpenOnly || daysLeft > 0;
-        return matchesSearch && matchesCategory && matchesDate && matchesStatus;
+        return matchesSearch && matchesCategory && matchesProvince && matchesDate && matchesStatus;
     });
 
     const uniqueCategories = [...new Set(tenders.map(t => t.category).filter(Boolean))].sort();
+    const uniqueProvinces = [...new Set(tenders.map(t => t.province).filter(Boolean))].sort();
 
     return (
         <div className="max-w-2xl mx-auto py-10 animate-fade-in px-4">
@@ -307,6 +315,16 @@ export default function RfqForm({ user, rfqCount, onBack, onNavigate }) {
                             ))}
                         </select>
                         <select
+                            value={provinceFilter}
+                            onChange={e => setProvinceFilter(e.target.value)}
+                            className="bg-[#121318] border border-gray-800 rounded-xl px-3 py-2.5 text-xs text-gray-300 outline-none focus:border-cyan-500/50"
+                        >
+                            <option value="">All Provinces</option>
+                            {uniqueProvinces.map(prov => (
+                                <option key={prov} value={prov}>{prov}</option>
+                            ))}
+                        </select>
+                        <select
                             value={dateRange}
                             onChange={e => setDateRange(Number(e.target.value))}
                             className="bg-[#121318] border border-gray-800 rounded-xl px-3 py-2.5 text-xs text-gray-300 outline-none focus:border-cyan-500/50"
@@ -326,9 +344,9 @@ export default function RfqForm({ user, rfqCount, onBack, onNavigate }) {
                         >
                             {showOpenOnly ? '✅ Open Only' : '🔵 All Status'}
                         </button>
-                        {(categoryFilter || showOpenOnly || dateRange !== 30) && (
+                        {(categoryFilter || provinceFilter || showOpenOnly || dateRange !== 30) && (
                             <button
-                                onClick={() => { setCategoryFilter(''); setShowOpenOnly(false); setDateRange(30); }}
+                                onClick={() => { setCategoryFilter(''); setProvinceFilter(''); setShowOpenOnly(false); setDateRange(30); }}
                                 className="px-4 py-2.5 rounded-xl text-xs font-black border border-red-800/40 text-red-400 hover:bg-red-900/20 transition-all"
                             >
                                 ✕ Clear Filters
